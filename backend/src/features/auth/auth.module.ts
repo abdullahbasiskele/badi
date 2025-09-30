@@ -1,4 +1,4 @@
-﻿import { Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CqrsModule } from '@nestjs/cqrs';
 import { JwtModule } from '@nestjs/jwt';
@@ -7,13 +7,18 @@ import { AbilityFactory } from '../../shared/application/policies/ability.factor
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { commandHandlers } from './application/commands';
+import { queryHandlers } from './application/queries';
+import { RefreshTokenService } from './application/services/refresh-token.service';
 import { JwtAccessStrategy } from './infrastructure/strategies/jwt-access.strategy';
 
 @Module({
   imports: [
     ConfigModule,
     CqrsModule,
-    PassportModule.register({ defaultStrategy: 'jwt-access', property: 'authUser' }),
+    PassportModule.register({
+      defaultStrategy: 'jwt-access',
+      property: 'authUser',
+    }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -27,8 +32,14 @@ import { JwtAccessStrategy } from './infrastructure/strategies/jwt-access.strate
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtAccessStrategy, AbilityFactory, ...commandHandlers],
+  providers: [
+    AuthService,
+    RefreshTokenService,
+    JwtAccessStrategy,
+    AbilityFactory,
+    ...commandHandlers,
+    ...queryHandlers,
+  ],
   exports: [AuthService, AbilityFactory, PassportModule],
 })
 export class AuthModule {}
-

@@ -1,7 +1,7 @@
 ﻿import { Injectable } from '@nestjs/common';
-import { AbilityBuilder, AbilityClass } from '@casl/ability';
+import { AbilityBuilder } from '@casl/ability';
 import { PrismaAbility, createPrismaAbility } from '@casl/prisma';
-import { Prisma } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import { AuthUser } from './interfaces/auth-user.interface';
 
 export enum AppAction {
@@ -12,23 +12,31 @@ export enum AppAction {
   Delete = 'delete',
 }
 
-type Subjects = 'Course' | 'Enrollment' | 'Lesson' | 'User' | 'all';
+type Subjects = Prisma.ModelName | 'all';
 export type AppSubjects = Subjects;
 export type AppAbility = PrismaAbility<[AppAction, Subjects]>;
-
-const AbilityCtor = createPrismaAbility as unknown as AbilityClass<AppAbility>;
+type DetectableSubject = { __caslSubjectType__?: Subjects } | undefined;
+const defaultCourseFilter: Prisma.CourseWhereInput = { isArchived: false };
 
 @Injectable()
 export class AbilityFactory {
   createForUser(user?: AuthUser | null): AppAbility {
-    const detectSubjectType = (item: any) => item?.__caslSubjectType__ ?? 'all';
-    const { can, build } = new AbilityBuilder<AppAbility>(AbilityCtor);
+    const detectSubjectType = (item: DetectableSubject): Subjects =>
+      item?.__caslSubjectType__ ?? 'all';
 
-    const allowCourse = (conditions: Prisma.CourseWhereInput) =>
-      can(AppAction.Read, 'Course', conditions as any);
+    const { can, build } = new AbilityBuilder<AppAbility>(createPrismaAbility);
+
+    const addRule = <T>(action: AppAction, subject: Subjects, filters: T) => {
+      // CASL's Prisma typings omit the condition overload, but runtime accepts Prisma filters.
+      can(action, subject, filters as never);
+    };
+
+    const allowCourse = (conditions: Prisma.CourseWhereInput) => {
+      addRule(AppAction.Read, 'Course', conditions);
+    };
 
     if (!user) {
-      allowCourse({ isArchived: false });
+      allowCourse(defaultCourseFilter);
       return build({ detectSubjectType });
     }
 
@@ -41,29 +49,47 @@ export class AbilityFactory {
     }
 
     if (roles.includes('organization-admin')) {
-      can(AppAction.Manage, 'Course', { organizationId: user.organizationId ?? undefined } as any);
-      can(
-        AppAction.Manage,
-        'Lesson',
-        { course: { organizationId: user.organizationId ?? undefined } } as any,
-      );
-      can(AppAction.Read, 'User', { organizationId: user.organizationId ?? undefined } as any);
+      const organizationId = user.organizationId ?? undefined;
+      const courseConditions: Prisma.CourseWhereInput = { organizationId };
+      const lessonConditions: Prisma.LessonWhereInput = {
+        course: { organizationId },
+      };
+      const userConditions: Prisma.UserWhereInput = { organizationId };
+
+      addRule(AppAction.Manage, 'Course', courseConditions);
+      addRule(AppAction.Manage, 'Lesson', lessonConditions);
+      addRule(AppAction.Read, 'User', userConditions);
     }
 
     if (roles.includes('teacher')) {
-      can(AppAction.Update, 'Course', { instructorId: user.id } as any);
-      can(AppAction.Delete, 'Course', { instructorId: user.id } as any);
-      can(AppAction.Manage, 'Lesson', { instructorId: user.id } as any);
+      const courseByInstructor: Prisma.CourseWhereInput = {
+        instructorId: user.id,
+      };
+      const lessonByInstructor: Prisma.LessonWhereInput = {
+        instructorId: user.id,
+      };
+
+      addRule(AppAction.Update, 'Course', courseByInstructor);
+      addRule(AppAction.Delete, 'Course', courseByInstructor);
+      addRule(AppAction.Manage, 'Lesson', lessonByInstructor);
 
       if (subjectScopes.length > 0) {
-        allowCourse({ subject: { in: subjectScopes }, isArchived: false });
+        const scopedCourses: Prisma.CourseWhereInput = {
+          subject: { in: subjectScopes },
+          isArchived: false,
+        };
+        allowCourse(scopedCourses);
       }
     }
 
     if (subjectScopes.length > 0) {
-      allowCourse({ subject: { in: subjectScopes }, isArchived: false });
+      const scopedCourses: Prisma.CourseWhereInput = {
+        subject: { in: subjectScopes },
+        isArchived: false,
+      };
+      allowCourse(scopedCourses);
     } else {
-      allowCourse({ isArchived: false });
+      allowCourse(defaultCourseFilter);
     }
 
     return build({ detectSubjectType });

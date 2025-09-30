@@ -31,4 +31,11 @@ async function bootstrap() {
   return port;
 }
 
-bootstrap();
+bootstrap()
+  .then((port) => {
+    console.log(`Backend started on port ${port}`);
+  })
+  .catch((error) => {
+    console.error('Failed to bootstrap Nest application', error);
+    process.exitCode = 1;
+  });

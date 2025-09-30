@@ -6,7 +6,10 @@ import { AuthUser } from '@shared/application/policies/interfaces/auth-user.inte
 import { JwtAccessPayload } from '@shared/infrastructure/security/jwt-payload.interface';
 
 @Injectable()
-export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt-access') {
+export class JwtAccessStrategy extends PassportStrategy(
+  Strategy,
+  'jwt-access',
+) {
   constructor(configService: ConfigService) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -27,4 +30,3 @@ export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt-access') 
     };
   }
 }
-

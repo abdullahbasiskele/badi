@@ -14,5 +14,3 @@ import { PrismaModule } from './shared/infrastructure/prisma/prisma.module';
   ],
 })
 export class AppModule {}
-
-
