@@ -8,8 +8,8 @@
 ## 2. Kimlik & Yetki
 - [x] Yerel kimlik doğrulama (register/login + CQRS + JWT) akışını devreye al.
 - [x] Refresh token deposu ve revoke politikasını Prisma üzerinden uygula.
-- [ ] CASL politikalarını `application/policies` altında dökümante et; örnek kullanıcı/rol senaryolarını README/Docs’a ekle.
-- [ ] SubjectScope kullanım rehberini UI/form koşullu gösterimleriyle ilişkilendir.
+- [x] CASL politikalarını `application/policies` altında dökümante et; örnek kullanıcı/rol senaryolarını README/Docs’a ekle.
+- [x] SubjectScope kullanım rehberini UI/form koşullu gösterimleriyle ilişkilendir.
 
 ## 3. Veri ve Performans
 - [x] Prisma şema taslağını tamamla ve ilk migration’ı oluştur (`20250930073220_init`).
