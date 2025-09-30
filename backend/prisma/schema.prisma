@@ -1,0 +1,176 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DATABASE_DIRECT_URL")
+}
+
+enum EnrollmentStatus {
+  APPLIED
+  APPROVED
+  REJECTED
+  CANCELLED
+  COMPLETED
+}
+
+enum LessonDeliveryMode {
+  IN_PERSON
+  REMOTE
+  HYBRID
+}
+
+enum RoleKey {
+  SYSTEM_ADMIN
+  ORGANIZATION_ADMIN
+  TEACHER
+  PARTICIPANT
+}
+
+model Organization {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+  users       User[]
+  courses     Course[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model User {
+  id              String           @id @default(uuid()) @db.Uuid
+  email           String           @unique
+  passwordHash    String?
+  displayName     String?
+  locale          String?          @default("tr-TR")
+  organizationId  String?          @db.Uuid
+  organization    Organization?    @relation(fields: [organizationId], references: [id])
+  subjectScopes   SubjectScope[]
+  roles           UserRole[]
+  enrollments     Enrollment[]
+  lessons         Lesson[]         @relation("LessonInstructor")
+  courses         Course[]         @relation("CourseInstructor")
+  refreshTokens   RefreshToken[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+model SubjectScope {
+  id        String @id @default(uuid()) @db.Uuid
+  userId    String @db.Uuid
+  subject   String
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, subject])
+  @@index([subject])
+}
+
+model Role {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String
+  key       RoleKey   @unique
+  users     UserRole[]
+  permissions RolePermission[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Permission {
+  id        String           @id @default(uuid()) @db.Uuid
+  code      String           @unique
+  actions   String[]         @default([])
+  subject   String
+  metadata  Json?
+  roles     RolePermission[]
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+}
+
+model UserRole {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  roleId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+}
+
+model RolePermission {
+  id           String      @id @default(uuid()) @db.Uuid
+  roleId       String      @db.Uuid
+  permissionId String      @db.Uuid
+  role         Role        @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission  @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+}
+
+model Course {
+  id              String        @id @default(uuid()) @db.Uuid
+  title           String
+  subject         String
+  organizationId  String?       @db.Uuid
+  instructorId    String?       @db.Uuid
+  capacity        Int?          @default(0)
+  isArchived      Boolean       @default(false)
+  published       Boolean       @default(true)
+  metadata        Json?
+  organization    Organization? @relation(fields: [organizationId], references: [id])
+  instructor      User?         @relation("CourseInstructor", fields: [instructorId], references: [id])
+  lessons         Lesson[]
+  enrollments     Enrollment[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([subject])
+  @@index([organizationId])
+  @@index([instructorId])
+}
+
+model Lesson {
+  id            String             @id @default(uuid()) @db.Uuid
+  courseId      String             @db.Uuid
+  instructorId  String?            @db.Uuid
+  startAt       DateTime
+  endAt         DateTime
+  deliveryMode  LessonDeliveryMode @default(HYBRID)
+  meetingUrl    String?
+  location      String?
+  course        Course             @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  instructor    User?              @relation("LessonInstructor", fields: [instructorId], references: [id])
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([courseId])
+  @@index([instructorId])
+}
+
+model Enrollment {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @db.Uuid
+  courseId  String           @db.Uuid
+  status    EnrollmentStatus @default(APPLIED)
+  notes     String?
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course    Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@unique([userId, courseId])
+  @@index([courseId, status])
+}
+
+model RefreshToken {
+  id         String   @id @default(uuid()) @db.Uuid
+  tokenHash  String
+  userId     String   @db.Uuid
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, expiresAt])
+}
