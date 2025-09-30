@@ -1,8 +1,9 @@
 ﻿import { Prisma, PrismaClient, RoleKey, LessonDeliveryMode, EnrollmentStatus } from '@prisma/client';
+import * as argon2 from 'argon2';
 
 const prisma = new PrismaClient();
 
-type RoleRecord = Record<RoleKey, string>;
+type RoleMap = Record<RoleKey, string>;
 
 type SeededUsers = {
   systemAdmin: { id: string };
@@ -34,21 +35,19 @@ async function seedOrganization() {
   });
 }
 
-async function seedRoles(): Promise<RoleRecord> {
+async function seedRoles(): Promise<RoleMap> {
+  const definitions = [
+    { key: RoleKey.SYSTEM_ADMIN, name: 'Sistem Yöneticisi' },
+    { key: RoleKey.ORGANIZATION_ADMIN, name: 'Kurum Yöneticisi' },
+    { key: RoleKey.TEACHER, name: 'Öğretmen' },
+    { key: RoleKey.PARTICIPANT, name: 'Katılımcı' },
+  ];
+
   const roles = await Promise.all(
-    [
-      { key: RoleKey.SYSTEM_ADMIN, name: 'Sistem Yöneticisi' },
-      { key: RoleKey.ORGANIZATION_ADMIN, name: 'Kurum Yöneticisi' },
-      { key: RoleKey.TEACHER, name: 'Öğretmen' },
-      { key: RoleKey.PARTICIPANT, name: 'Katılımcı' },
-    ].map(role =>
-      prisma.role.create({
-        data: { key: role.key, name: role.name },
-      }),
-    ),
+    definitions.map(definition => prisma.role.create({ data: definition })),
   );
 
-  return roles.reduce<RoleRecord>((acc, role) => {
+  return roles.reduce<RoleMap>((acc, role) => {
     acc[role.key] = role.id;
     return acc;
   }, {
@@ -56,7 +55,7 @@ async function seedRoles(): Promise<RoleRecord> {
     [RoleKey.ORGANIZATION_ADMIN]: '',
     [RoleKey.TEACHER]: '',
     [RoleKey.PARTICIPANT]: '',
-  } as RoleRecord);
+  } as RoleMap);
 }
 
 async function seedPermissions() {
@@ -71,65 +70,67 @@ async function seedPermissions() {
   await prisma.permission.createMany({ data: permissions });
 }
 
-async function attachPermissions(roleRecord: RoleRecord) {
+async function attachPermissions(roleMap: RoleMap) {
   const permissions = await prisma.permission.findMany({ select: { id: true, code: true } });
   const codeToId = new Map(permissions.map(p => [p.code, p.id] as const));
 
-  const connect = async (roleKey: RoleKey, codes: string[]) => {
+  const attach = async (roleKey: RoleKey, codes: string[]) => {
     for (const code of codes) {
       const permissionId = codeToId.get(code);
       if (!permissionId) continue;
       await prisma.rolePermission.create({
         data: {
-          role: { connect: { id: roleRecord[roleKey] } },
+          role: { connect: { id: roleMap[roleKey] } },
           permission: { connect: { id: permissionId } },
         },
       });
     }
   };
 
-  await connect(RoleKey.SYSTEM_ADMIN, Array.from(codeToId.keys()));
-  await connect(RoleKey.ORGANIZATION_ADMIN, ['course.manage', 'lesson.manage', 'user.view']);
-  await connect(RoleKey.TEACHER, ['course.view', 'lesson.manage']);
-  await connect(RoleKey.PARTICIPANT, ['course.view', 'lesson.view']);
+  await attach(RoleKey.SYSTEM_ADMIN, Array.from(codeToId.keys()));
+  await attach(RoleKey.ORGANIZATION_ADMIN, ['course.manage', 'lesson.manage', 'user.view']);
+  await attach(RoleKey.TEACHER, ['course.view', 'lesson.manage']);
+  await attach(RoleKey.PARTICIPANT, ['course.view', 'lesson.view']);
 }
 
-async function seedUsers(organizationId: string, roleRecord: RoleRecord): Promise<SeededUsers> {
+async function seedUsers(organizationId: string, roleMap: RoleMap): Promise<SeededUsers> {
+  const hashedPassword = await argon2.hash('Password123!', { type: argon2.argon2id });
+
   const [systemAdmin, organizationAdmin, teacher, participant] = await Promise.all([
     prisma.user.create({
       data: {
         email: 'admin@badi.local',
         displayName: 'Sistem Admini',
-        passwordHash: 'demo-hash',
-        roles: { create: [{ role: { connect: { id: roleRecord[RoleKey.SYSTEM_ADMIN] } } }] },
+        passwordHash: hashedPassword,
+        roles: { create: [{ role: { connect: { id: roleMap[RoleKey.SYSTEM_ADMIN] } } }] },
       },
     }),
     prisma.user.create({
       data: {
         email: 'yonetici@badi.local',
         displayName: 'Kurum Yöneticisi',
-        passwordHash: 'demo-hash',
+        passwordHash: hashedPassword,
         organization: { connect: { id: organizationId } },
-        roles: { create: [{ role: { connect: { id: roleRecord[RoleKey.ORGANIZATION_ADMIN] } } }] },
+        roles: { create: [{ role: { connect: { id: roleMap[RoleKey.ORGANIZATION_ADMIN] } } }] },
       },
     }),
     prisma.user.create({
       data: {
         email: 'muzik-ogretmen@badi.local',
         displayName: 'Müzik Öğretmeni',
-        passwordHash: 'demo-hash',
+        passwordHash: hashedPassword,
         organization: { connect: { id: organizationId } },
         subjectScopes: { create: [{ subject: 'music' }] },
-        roles: { create: [{ role: { connect: { id: roleRecord[RoleKey.TEACHER] } } }] },
+        roles: { create: [{ role: { connect: { id: roleMap[RoleKey.TEACHER] } } }] },
       },
     }),
     prisma.user.create({
       data: {
         email: 'katilimci@badi.local',
         displayName: 'Kurs Katılımcısı',
-        passwordHash: 'demo-hash',
+        passwordHash: hashedPassword,
         organization: { connect: { id: organizationId } },
-        roles: { create: [{ role: { connect: { id: roleRecord[RoleKey.PARTICIPANT] } } }] },
+        roles: { create: [{ role: { connect: { id: roleMap[RoleKey.PARTICIPANT] } } }] },
       },
     }),
   ]);
@@ -173,10 +174,10 @@ async function main() {
   await clearDatabase();
 
   const organization = await seedOrganization();
-  const roleRecord = await seedRoles();
+  const roleMap = await seedRoles();
   await seedPermissions();
-  await attachPermissions(roleRecord);
-  const users = await seedUsers(organization.id, roleRecord);
+  await attachPermissions(roleMap);
+  const users = await seedUsers(organization.id, roleMap);
   await seedCourse(organization.id, users.teacher.id, users.participant.id);
 
   console.info('Seed completed successfully.');
@@ -190,3 +191,5 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
+
+

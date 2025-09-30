@@ -1,18 +1,18 @@
 ﻿import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { CqrsModule } from '@nestjs/cqrs';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { AbilityFactory } from '../../shared/application/policies/ability.factory';
-import { KeycloakClient } from '../../shared/infrastructure/oauth/keycloak.client';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { commandHandlers } from './application/commands';
 import { JwtAccessStrategy } from './infrastructure/strategies/jwt-access.strategy';
-import { JwtRefreshStrategy } from './infrastructure/strategies/jwt-refresh.strategy';
-import { KeycloakOAuthStrategy } from './infrastructure/strategies/keycloak.strategy';
 
 @Module({
   imports: [
     ConfigModule,
+    CqrsModule,
     PassportModule.register({ defaultStrategy: 'jwt-access', property: 'authUser' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -27,14 +27,7 @@ import { KeycloakOAuthStrategy } from './infrastructure/strategies/keycloak.stra
     }),
   ],
   controllers: [AuthController],
-  providers: [
-    AuthService,
-    KeycloakClient,
-    JwtAccessStrategy,
-    JwtRefreshStrategy,
-    KeycloakOAuthStrategy,
-    AbilityFactory,
-  ],
+  providers: [AuthService, JwtAccessStrategy, AbilityFactory, ...commandHandlers],
   exports: [AuthService, AbilityFactory, PassportModule],
 })
 export class AuthModule {}
