@@ -1,0 +1,22 @@
+﻿// Course domain model
+model Course {
+  id              String        @id @default(uuid()) @db.Uuid
+  title           String
+  subject         String
+  organizationId  String?       @db.Uuid
+  instructorId    String?       @db.Uuid
+  capacity        Int?          @default(0)
+  isArchived      Boolean       @default(false)
+  published       Boolean       @default(true)
+  metadata        Json?
+  organization    Organization? @relation(fields: [organizationId], references: [id])
+  instructor      User?         @relation("CourseInstructor", fields: [instructorId], references: [id])
+  lessons         Lesson[]
+  enrollments     Enrollment[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([subject])
+  @@index([organizationId])
+  @@index([instructorId])
+}

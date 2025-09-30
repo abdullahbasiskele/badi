@@ -1,0 +1,13 @@
+// DO NOT EDIT: this file contains datasource and generator configuration.
+// Models are defined in individual files under prisma/enums and prisma/tables.
+// Use scripts/prisma/build-schema.mjs to regenerate schema.prisma before running Prisma CLI commands.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_DIRECT_URL")
+}

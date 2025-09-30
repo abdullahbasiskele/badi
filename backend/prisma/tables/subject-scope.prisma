@@ -1,0 +1,10 @@
+﻿// Subjects assigned to a user for scoped access
+model SubjectScope {
+  id        String @id @default(uuid()) @db.Uuid
+  userId    String @db.Uuid
+  subject   String
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, subject])
+  @@index([subject])
+}

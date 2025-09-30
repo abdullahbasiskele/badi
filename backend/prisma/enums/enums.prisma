@@ -1,0 +1,22 @@
+﻿// Global enum definitions
+
+enum EnrollmentStatus {
+  APPLIED
+  APPROVED
+  REJECTED
+  CANCELLED
+  COMPLETED
+}
+
+enum LessonDeliveryMode {
+  IN_PERSON
+  REMOTE
+  HYBRID
+}
+
+enum RoleKey {
+  SYSTEM_ADMIN
+  ORGANIZATION_ADMIN
+  TEACHER
+  PARTICIPANT
+}

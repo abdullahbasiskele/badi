@@ -1,0 +1,10 @@
+﻿// Link table between roles and permissions
+model RolePermission {
+  id           String      @id @default(uuid()) @db.Uuid
+  roleId       String      @db.Uuid
+  permissionId String      @db.Uuid
+  role         Role        @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission  @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+}

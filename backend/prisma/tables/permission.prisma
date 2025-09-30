@@ -1,0 +1,11 @@
+﻿// Permission definition
+model Permission {
+  id        String           @id @default(uuid()) @db.Uuid
+  code      String           @unique
+  actions   String[]         @default([])
+  subject   String
+  metadata  Json?
+  roles     RolePermission[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+}
