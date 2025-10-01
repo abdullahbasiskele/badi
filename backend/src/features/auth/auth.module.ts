@@ -23,10 +23,11 @@ import { JwtAccessStrategy } from './infrastructure/strategies/jwt-access.strate
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_ACCESS_SECRET', 'change-me'),
+        secret: config.getOrThrow<string>('JWT_ACCESS_SECRET'),
         signOptions: {
-          expiresIn: config.get<string>('JWT_ACCESS_TTL', '15m'),
-          issuer: config.get<string>('JWT_ISSUER', 'badi-platform'),
+          expiresIn: config.getOrThrow<string>('JWT_ACCESS_TTL'),
+          issuer: config.getOrThrow<string>('JWT_ISSUER'),
+          audience: config.get<string>('JWT_ACCESS_AUDIENCE'),
         },
       }),
     }),

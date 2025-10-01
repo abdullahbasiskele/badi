@@ -27,13 +27,10 @@ export class AuthService {
     const subjectScopes = user.subjectScopes.map((scope) => scope.subject);
     const organizationId = user.organizationId ?? undefined;
 
-    const accessSecret = this.configService.get<string>(
-      'JWT_ACCESS_SECRET',
-      'change-me',
-    );
-    const accessTtl = this.configService.get<string>('JWT_ACCESS_TTL', '15m');
-    const refreshTtl = this.configService.get<string>('JWT_REFRESH_TTL', '7d');
-    const issuer = this.configService.get<string>('JWT_ISSUER', 'badi-backend');
+    const accessSecret = this.getRequiredConfig('JWT_ACCESS_SECRET');
+    const accessTtl = this.getRequiredConfig('JWT_ACCESS_TTL');
+    const refreshTtl = this.getRequiredConfig('JWT_REFRESH_TTL');
+    const issuer = this.getRequiredConfig('JWT_ISSUER');
     const audience = this.configService.get<string>('JWT_ACCESS_AUDIENCE');
 
     const accessPayload = {
@@ -67,11 +64,11 @@ export class AuthService {
 
   public parseRefreshToken(token: string): { tokenId: string; secret: string } {
     if (!token || typeof token !== 'string') {
-      throw new UnauthorizedException('Ge�ersiz yenileme token�.');
+      throw new UnauthorizedException('Geçersiz yenileme tokenı.');
     }
     const parts = token.split('.');
     if (parts.length !== 2 || !parts[0] || !parts[1]) {
-      throw new UnauthorizedException('Ge�ersiz yenileme token�.');
+      throw new UnauthorizedException('Geçersiz yenileme tokenı.');
     }
     return { tokenId: parts[0], secret: parts[1] };
   }
@@ -84,7 +81,7 @@ export class AuthService {
   private parseDurationToSeconds(value: string): number {
     const match = /^([0-9]+)([smhd])?$/i.exec(value.trim());
     if (!match) {
-      throw new Error(`Ge�ersiz s�re format�: ${value}`);
+      throw new Error(`Geçersiz süre formatı: ${value}`);
     }
     const amount = parseInt(match[1], 10);
     const unit = (match[2] || 's').toLowerCase();
@@ -119,5 +116,9 @@ export class AuthService {
       return AuthService.DEFAULT_REFRESH_LIMIT;
     }
     return Math.floor(parsed);
+  }
+
+  private getRequiredConfig(key: string): string {
+    return this.configService.getOrThrow<string>(key);
   }
 }
