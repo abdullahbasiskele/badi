@@ -55,9 +55,11 @@ export class AbilityFactory {
         course: { organizationId },
       };
       const userConditions: Prisma.UserWhereInput = { organizationId };
+      const auditLogConditions: Prisma.HttpRequestLogWhereInput = { organizationId };
 
       addRule(AppAction.Manage, 'Course', courseConditions);
       addRule(AppAction.Manage, 'Lesson', lessonConditions);
+      addRule(AppAction.Manage, 'HttpRequestLog', auditLogConditions);
       addRule(AppAction.Read, 'User', userConditions);
       addRule(AppAction.Manage, 'User', userConditions);
       addRule(AppAction.Create, 'User', userConditions);
@@ -98,4 +100,6 @@ export class AbilityFactory {
     return build({ detectSubjectType });
   }
 }
+
+
 

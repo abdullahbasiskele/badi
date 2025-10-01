@@ -1,103 +1,73 @@
-﻿# Kimlik & Yetkilendirme Rehberi
+# Kimlik ve Yetki Rehberi
 
-Bu doküman, Badi monolit backend’inde kimlik doğrulama ve yetkilendirme süreçlerinde kullanılan veritabanı tablolarını ve bu tabloların CASL/SubjectScope tabanlı kurallar ile nasıl çalıştığını açıklar. Öğretmenlerin branş bazlı erişimi örneği üzerinden ilerlesek de aynı mekanizma form alanları, raporlar veya yönetim ekranları gibi farklı UI senaryolarında da kullanılabilir.
+Bu dokuman Badi monolit backend inde kimlik dogrulama, yetkilendirme ve audit islemlerinin nasil calistigini ozetler. Veri modeli Prisma uzerinden yurutulur, CQRS komutlari ve guard katmani CASL ile RLS kurallarini birlikte uygular.
 
-## 1. Veri Modeli
+## 1. Veri Modeli ve Iliskiler
 
 ### User
-- Kullanıcının temel kimliği (e-posta, parola özeti, görünen ad, locale).
-- `organizationId` ile isteğe bağlı kurum bağlamı.
-- İlişkiler: `roles` (`UserRole` pivotu), `subjectScopes`, `courses`, `lessons`, `enrollments`, `refreshTokens`.
+- E posta, parola ozeti (argon2), gorunen ad, locale ve opsiyonel organizationId alanlarini tasir.
+- UserRole, SubjectScope, Course, Lesson, Enrollment ve RefreshToken iliskileri uzerinden diger aggregate lara baglanir.
 
-### Role & Permission
-- Roller (`Role`) sistem/kamu profilini temsil eder (`RoleKey` enumuyla referans verilir).
-- İzinler (`Permission`) CASL kararlarında kullanılacak `code`, `subject`, `actions` bilgilerini tutar.
-- `RolePermission` pivotu hangi rolün hangi izinleri taşıdığını belirtir.
-
-### UserRole
-- Bir kullanıcının birden fazla role sahip olabilmesini sağlar.
+### Role ve Permission
+- Role tablosu RoleKey enum degerleri ile isaretlenir (SYSTEM_ADMIN, ORGANIZATION_ADMIN, TEACHER, PARTICIPANT).
+- Permission kayitlari CASL kararlarinda kullanilacak subject, action ve metadata bilgilerinin kaynagi olarak hizmet eder.
+- RolePermission pivotu bir rolde hangi izinlerin aktif oldugunu takip eder.
 
 ### SubjectScope
-- Kullanıcının erişebileceği konu/tema setini tutar (örn. `userId=teacher1`, `subject='music'`).
-- CASL ability üretiminde `subjectScopes` listesi kullanılır.
-- UI tarafında da koşullu alan/komponent gösterimi için kullanılabilir.
+- Kullaniciya belirli konu veya modullerde yetki verir (ornek subject = music).
+- AbilityFactory bu listeyi CASL yeteneklerine cevirir; frontend guard lar ayni listeyi UI filtreleri icin kullanir.
 
 ### RefreshToken
-- Opaque (JWT olmayan) yenileme tokenlarını tutar. Rotasyon sırasında hashlenmiş secret, sona erme ve revoke bilgilerini saklar.
+- Opaque yenileme token larinin hashlenmis degerini, gecerlilik ve revoke bilgisini saklar.
+- Token limiti (varsayilan 3) asildiginda en eski kayitlar otomatik olarak revoke edilir.
 
-## 2. CASL + Prisma Yetkilendirme Akışı
+### HttpRequestLog
+- Audit log tablosu (http_request_logs) butun HTTP isteklerini ve auth aktivitelerini kaydeder.
+- Alanlar: occurred_at, user_id, organization_id, roles, subject_scopes, ip, forwarded_for, user_agent, method, path, status_code, duration_ms, query_json, params_json, body_digest, response_digest, correlation_id.
+- Sistem ve organization admin rolleri CASL uzerinden okuyabilir; RLS politikasi organization baglamina gore filtre uygular.
 
-1. **JWT Claim’leri**: Access token’da `roles`, `subjectScopes`, `organizationId` taşınır, istek sırasında `AuthUser` objesine maplenir.
-2. **AbilityFactory**: Kullanıcının rollerine ve `SubjectScope` kayıtlarına göre CASL kuralları üretilir.
-   - Sistem yöneticisi `manage all` yetkisi alır.
-   - Kurum yöneticisi `organizationId` filtresiyle sınırlandırılır.
-   - Öğretmenler `subject in subjectScopes` ve `instructorId = user.id` gibi koşullarla sınırlıdır.
-3. **Guard Katmanı**: `JwtAccessGuard` erişimi doğrular, `PoliciesGuard` route metadata’sındaki `@CheckAbility` dekoratörünü CASL ability ile karşılaştırır.
-4. **Prisma Query’si**: `@casl/prisma` sayesinde ability kuralları repository katmanında otomatik olarak Prisma filtrelerine çevrilebilir (`accessibleBy`).
-5. **RLS (Opsiyonel)**: PostgreSQL Row Level Security kullanarak aynı koşulları veritabanı düzeyinde ikinci savunma hattı olarak uygulayabiliriz.
+## 2. Kimlik Komutlari ve Akislar
 
-### Örnek CASL Politikası (Kod Tarafı)
-```ts
-@CheckAbility({ action: AppAction.Read, subject: 'Course', conditions: { subject: { in: ['music'] } } })
-@Get(':id')
-async findOne() { ... }
-```
-Bu route çağrılmadan önce `PoliciesGuard`, ability’nin `Course` üzerinde `Read` izni olup olmadığını ve `subject` değerinin öğretmenin `SubjectScope` listesine uyup uymadığını kontrol eder.
+1. RegisterUserCommand: Parolayi argon2 ile hashler, varsayilan rolu baglar, refresh token paketi dondurur.
+2. LoginUserCommand: Kullanici kimligini dogrular, SubjectScope ve rollerini yukler, token uretir.
+3. RefreshAccessTokenCommand: Refresh token kaydini dogrular, yeni access + refresh ciftini dondurur, eski kaydi revoke eder.
+4. Logout: Refresh token tedarik edilmisse revoke eder ve store u temizler.
+5. RecordAuthActivityCommand: Giris, cikis, refresh gibi olaylarda audit log tablosuna kayit olusturur (body digest ve PII maskesi dahil).
 
-### Örnek Repository Kullanımı
+Islemler AppCommandBus uzerinden calisir. Validation, transaction ve loglama pipeline lari AppCommandBus ve HttpRequestLoggingInterceptor arasinda paylastirilir.
+
+## 3. CASL ve RLS Uygulamasi
+
+1. JwtAccessGuard access token i dogrular ve request.authUser objesini olusturur.
+2. PoliciesGuard route metadata sindaki @CheckAbility dekoratorunu okur ve AbilityFactory ile user yeteneklerini cikarir.
+3. accessibleBy(ability) yardimiyla repository katmaninda Prisma filtreleri olusur. Ornek: Course sorgulari organizationId ve subjectScopes kosullarina gore filtrelenir.
+4. PostgreSQL tarafinda RLS aktif tablolarda (course, enrollment, http_request_logs vb.) ayni kosullar uygulanir. Audit tablosu icin app.is_system_admin ve app.organization_id session parametreleri kullanilir.
+
 ```ts
 const ability = this.abilityFactory.createForUser(authUser);
-return this.prisma.course.findMany(accessibleBy(ability, AppAction.Read).Course);
+const filter = accessibleBy(ability, AppAction.Read).Course;
+return this.prisma.course.findMany({ where: filter });
 ```
-`accessibleBy` ability’deki koşulları Prisma `where` ifadesine dönüştürür ve yalnızca izinli kayıtlar döner.
 
-## 3. SubjectScope ile UI/Form Koşullu Gösterim
+## 4. Audit Izleme
 
-- **Kayıtlı scope’ları JWT’ye ekle**: Access token oluşturulurken `subjectScopes` claim’i eklenir.
-- **Frontend’de değerlendirme**: React veya benzeri arayüzde kullanıcı bilgisinden `subjectScopes` çekilir. Örn. “Müzik” yetkisi olmayan bir öğretmene müzik formlarını gizleyebiliriz.
-- **Form örneği**:
-  ```tsx
-  const canEditMusic = user.subjectScopes.includes('music');
-  return canEditMusic ? <MusicForm /> : <NoAccessBanner />;
-  ```
-- **Rapor/menü örneği**: Benzer şekilde menü öğelerini scope listesine göre filtrelemek mümkün.
-- **Advanced**: `SubjectScope` tablosuna sadece branş değil, UI bileşeni veya modül kimliği yazılarak daha esnek yetkilendirme yapılabilir (ör. `subject='forms.studentFinance'`). Backend ability kuralları da aynı değerleri kullanırsa veri ve UI tutarlı kalır.
+- HttpRequestLoggingInterceptor tum HTTP isteklerini suredir ve sonucuna gore AuditTrailService e icerik gonderir.
+- AuditTrailService config e gore dogrudan AppCommandBus u kullanir veya BullMQ kuyruguna (audit-log) is birakir.
+- Repository, gelen body ve response verisini maskeleyerek digest (sha256) uretir ve PII bilgisini regex ile temizler.
+- DeleteOldHttpLogsCommand veri saklama suresine (varsayilan 180 gun) gore tabloyu budar. Service, periyodik calisan AuditLogRetentionService ile birlikte calisir.
 
-## 4. Kimlik Doğrulama Akışı (Yerel)
+## 5. Frontend Entegrasyonu
 
-1. **Register** (`POST /auth/register`): `RegisterUserHandler` Argon2 ile parolayı hash’ler, varsayılan rolü bağlar ve token seti döner.
-2. **Login** (`POST /auth/login`): E-posta/parola doğrulanır, CASL için gerekli ilişkiler yüklenir, token döner.
-3. **Refresh** (`POST /auth/refresh`): Opaque refresh token parse edilir, DB’deki hash ile karşılaştırılır, limit kontrolü sonrası yeni token üretilir.
-4. **Logout** (`POST /auth/logout`): Gönderilen refresh token varsa revoke edilir.
+- Access token ve refresh token useAuthStore icinde saklanir. apiFetch 401 aldiginda otomatik refresh dener.
+- SubjectScope listesi UI guard lari, menu filtreleri ve form gorunumleri icin kullanilir.
+- RoleGuard komutu request.authUser bilgisini bekler ve AuthUser.roles degerine gore rota kontrolu yapar.
 
-## 5. RefreshToken Yönetimi
+## 6. Gelistirme Checklist i
 
-- Tokenlar `uuid.secret` formatında opak string olarak üretilir.
-- Her kullanıcı için varsayılan 3 aktif token limitimiz var (`AUTH_REFRESH_TOKEN_LIMIT` ile değiştirilebilir). Limit aşılırsa en eski tokenlar revoke edilir.
-- `expiresAt` kontrolü ile süre aşımı, `revokedAt` ile manuel/otomatik iptal izlenir.
+- [ ] Yeni endpoint eklerken @CheckAbility dekoratorunu unutma.
+- [ ] Repository sorgularina accessibleBy veya ability tabanli where filtreleri ekle.
+- [ ] Auth ile ilgili komutlarda RecordAuthActivityCommand tetiklenip tetiklenmedigini kontrol et.
+- [ ] Migration eklediginde npm run prisma:generate calistir ve seed scriptini guncelle.
+- [ ] Audit log retention ihtiyacina gore AUDIT_LOG_RETENTION_DAYS ortam degiskenini ayarla.
 
-## 6. Seed Stratejisi
-
-`prisma/seed.ts` betiği:
-1. Veritabanını temizler.
-2. Organization, Role, Permission kayıtlarını ekler.
-3. Roller ile izinleri ilişkilendirir.
-4. Örnek kullanıcılar oluşturur (argon2 hash ile parola) ve `SubjectScope` atar.
-5. Müzik kursu, ders ve enrollment kaydı ekler.
-
-Çalıştırmak için: `npm run prisma:seed`.
-
-## 7. Kullanışlı Komutlar
-
-- `npm run prisma:generate`: Parçalı şemayı birleştirir ve Prisma Client üretir.
-- `npm run prisma:migrate -- --name <ad>`: Yeni migration oluşturur ve uygular.
-- `npm run prisma:seed`: Seed betiğini çalıştırır.
-- `npm run start:dev`: Nest backend’i çalıştırır (kök klasör yerine `backend/` içinde çalıştırılması gerekir).
-
-## 8. Kontrol Listesi
-
-- CASL policy örnekleri dokümante edildi.
-- SubjectScope’un UI koşullu gösterimde nasıl kullanılacağı açıklandı.
-- Refresh token limit yönetimi ve seed stratejisi belgelendi.
-
-Bu rehber, ilerleyen sprintlerde yeni modüller eklenirken veya UI tarafında koşullu yetkilendirme uygulanırken referans olarak kullanılmalıdır.
+Bu rehber kimlik ve yetki ile ilgili tum feature calismalarinda referans alinan ana kaynaktir. Yeni roller, subject scope senaryolari veya audit politikasi geldiginde dokuman mutlaka guncellenmelidir.

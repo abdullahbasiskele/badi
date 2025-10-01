@@ -1,0 +1,27 @@
+// HTTP request and auth activity audit trail
+model HttpRequestLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  occurredAt     DateTime @default(now())
+  userId         String?  @db.Uuid
+  organizationId String?  @db.Uuid
+  roles          String[] @default([])
+  subjectScopes  String[] @default([])
+  ipAddress      String?
+  forwardedFor   String?
+  userAgent      String?
+  method         String
+  path           String
+  statusCode     Int
+  durationMs     Int
+  queryJson      Json?
+  paramsJson     Json?
+  bodyDigest     String?
+  responseDigest String?
+  correlationId  String?
+
+  @@index([occurredAt], map: "HttpRequestLog_occurredAt_idx")
+  @@index([userId], map: "HttpRequestLog_userId_idx")
+  @@index([statusCode], map: "HttpRequestLog_statusCode_idx")
+  @@index([path], map: "HttpRequestLog_path_idx")
+  @@index([organizationId], map: "HttpRequestLog_organizationId_idx")
+}

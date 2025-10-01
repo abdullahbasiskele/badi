@@ -1,8 +1,7 @@
-﻿import {
+import {
   BadRequestException,
   Inject,
   Injectable,
-  Logger,
   Optional,
 } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
@@ -10,12 +9,13 @@ import { CommandBus } from '@nestjs/cqrs';
 import { CQRS_MODULE_OPTIONS } from '@nestjs/cqrs/dist/constants';
 import type { CqrsModuleOptions } from '@nestjs/cqrs';
 import { validate } from 'class-validator';
+import { AppLoggerService, type ContextualLogger } from '@shared/infrastructure/logging/app-logger.service';
 import { PrismaUnitOfWork } from '@shared/infrastructure/prisma/prisma-unit-of-work';
 import { isTransactionalCommand } from './decorators/transactional-command.decorator';
 
 @Injectable()
 export class AppCommandBus extends CommandBus {
-  private readonly appLogger = new Logger(AppCommandBus.name);
+  private readonly logger: ContextualLogger;
 
   constructor(
     moduleRef: ModuleRef,
@@ -23,21 +23,23 @@ export class AppCommandBus extends CommandBus {
     @Inject(CQRS_MODULE_OPTIONS)
     options: CqrsModuleOptions | undefined,
     private readonly unitOfWork: PrismaUnitOfWork,
+    appLogger: AppLoggerService,
   ) {
     super(moduleRef, options);
+    this.logger = appLogger.forContext(AppCommandBus.name);
   }
 
   override async execute<T, R = any>(command: T): Promise<R> {
     await this.validateCommand(command);
     const commandName = this.resolveCommandName(command);
     const run = async () => {
-      this.appLogger.debug(`Executing command ${commandName}`);
+      this.logger.debug('Executing command', { commandName });
       try {
         const result = await super.execute(command as any);
-        this.appLogger.debug(`Command ${commandName} completed`);
+        this.logger.debug('Command completed', { commandName });
         return result;
       } catch (error) {
-        this.appLogger.error(`Command ${commandName} failed`, error as Error);
+        this.logger.error('Command failed', error as Error, { commandName });
         throw error;
       }
     };

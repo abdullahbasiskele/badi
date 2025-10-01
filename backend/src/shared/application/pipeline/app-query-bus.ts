@@ -2,7 +2,6 @@ import {
   BadRequestException,
   Inject,
   Injectable,
-  Logger,
   Optional,
 } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
@@ -10,30 +9,33 @@ import { QueryBus } from '@nestjs/cqrs';
 import { CQRS_MODULE_OPTIONS } from '@nestjs/cqrs/dist/constants';
 import type { CqrsModuleOptions } from '@nestjs/cqrs';
 import { validate } from 'class-validator';
+import { AppLoggerService, type ContextualLogger } from '@shared/infrastructure/logging/app-logger.service';
 
 @Injectable()
 export class AppQueryBus extends QueryBus {
-  private readonly appLogger = new Logger(AppQueryBus.name);
+  private readonly logger: ContextualLogger;
 
   constructor(
     moduleRef: ModuleRef,
     @Optional()
     @Inject(CQRS_MODULE_OPTIONS)
     options: CqrsModuleOptions | undefined,
+    appLogger: AppLoggerService,
   ) {
     super(moduleRef, options);
+    this.logger = appLogger.forContext(AppQueryBus.name);
   }
 
   override async execute<T, R = any>(query: T): Promise<R> {
     await this.validateQuery(query);
     const queryName = this.resolveQueryName(query);
-    this.appLogger.debug(`Executing query ${queryName}`);
+    this.logger.debug('Executing query', { queryName });
     try {
       const result = await super.execute(query as any);
-      this.appLogger.debug(`Query ${queryName} completed`);
+      this.logger.debug('Query completed', { queryName });
       return result;
     } catch (error) {
-      this.appLogger.error(`Query ${queryName} failed`, error as Error);
+      this.logger.error('Query failed', error as Error, { queryName });
       throw error;
     }
   }

@@ -6,6 +6,7 @@ import { plainToInstance } from 'class-transformer';
 import { AuthService } from '@features/auth/auth.service';
 import { AuthUserRepository, RoleRepository } from '@features/auth/infrastructure/repositories';
 import { TeacherRepository } from '@features/teacher/infrastructure/repositories/teacher.repository';
+import { PrismaUnitOfWork } from '@shared/infrastructure/prisma/prisma-unit-of-work';
 import { CreateTeacherCommand } from './create-teacher.command';
 import { CreateTeacherResponseDto } from '../../dto/create-teacher-response.dto';
 
@@ -19,6 +20,7 @@ export class CreateTeacherHandler
     private readonly roles: RoleRepository,
     private readonly teachers: TeacherRepository,
     private readonly authService: AuthService,
+    private readonly unitOfWork: PrismaUnitOfWork,
   ) {}
 
   async execute(
@@ -69,14 +71,19 @@ export class CreateTeacherHandler
     const temporaryPassword = command.password ? null : password;
     const passwordHash = await this.authService.hashPassword(password);
 
-    const created = await this.teachers.createTeacher({
-      email,
-      displayName,
-      passwordHash,
-      organizationId,
-      roleId: teacherRole.id,
-      subject,
-    });
+    const created = await this.unitOfWork.withTransaction(async (tx) =>
+      this.teachers.createTeacher(
+        {
+          email,
+          displayName,
+          passwordHash,
+          organizationId,
+          roleId: teacherRole.id,
+          subject,
+        },
+        tx,
+      ),
+    );
 
     const createdSubject = created.subjectScopes.at(0)?.subject ?? subject;
 

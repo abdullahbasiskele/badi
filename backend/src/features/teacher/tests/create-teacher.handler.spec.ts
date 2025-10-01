@@ -4,11 +4,11 @@ import { CreateTeacherCommand } from '../application/commands/create-teacher/cre
 import type { AuthService } from '@features/auth/auth.service';
 import type { AuthUserRepository, RoleRepository } from '@features/auth/infrastructure/repositories';
 import type { TeacherRepository } from '@features/teacher/infrastructure/repositories/teacher.repository';
+import type { PrismaUnitOfWork } from '@shared/infrastructure/prisma/prisma-unit-of-work';
 
 function createHandler() {
   const authUsers = {
     findAuthUserByEmail: jest.fn(),
-    findAuthUserById: jest.fn(),
   } as unknown as AuthUserRepository;
 
   const roles = {
@@ -23,8 +23,18 @@ function createHandler() {
     hashPassword: jest.fn().mockResolvedValue('hashed'),
   } as unknown as AuthService;
 
-  const handler = new CreateTeacherHandler(authUsers, roles, teachers, authService);
-  return { authUsers, roles, teachers, authService, handler };
+  const unitOfWork = {
+    withTransaction: jest.fn((work) => work({} as never)),
+  } as unknown as PrismaUnitOfWork;
+
+  const handler = new CreateTeacherHandler(
+    authUsers,
+    roles,
+    teachers,
+    authService,
+    unitOfWork,
+  );
+  return { authUsers, roles, teachers, authService, unitOfWork, handler };
 }
 
 describe('CreateTeacherHandler', () => {
@@ -44,7 +54,7 @@ describe('CreateTeacherHandler', () => {
     );
 
   it('creates teacher and returns temporary password when none provided', async () => {
-    const { authUsers, roles, teachers, handler } = createHandler();
+    const { authUsers, roles, teachers, handler, unitOfWork } = createHandler();
     (authUsers.findAuthUserByEmail as jest.Mock).mockResolvedValue(null);
     (roles.findByKey as jest.Mock).mockResolvedValue({ id: 'role-1' });
     (teachers.createTeacher as jest.Mock).mockResolvedValue({
@@ -57,8 +67,10 @@ describe('CreateTeacherHandler', () => {
 
     const result = await handler.execute(baseCommand());
 
+    expect(unitOfWork.withTransaction).toHaveBeenCalled();
     expect(teachers.createTeacher).toHaveBeenCalledWith(
       expect.objectContaining({ email: 'teacher@example.com', subject: 'Müzik' }),
+      expect.any(Object),
     );
     expect(result.temporaryPassword).toBeTruthy();
     expect(result.email).toBe('teacher@example.com');

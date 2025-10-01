@@ -1,105 +1,46 @@
-﻿# VSA + Atomic Design Hybrid - Frontend Yapisal Rehberi
+# VSA + Atomic Design Hybrid - Frontend Yapisi
 
-Bu dokuman Next.js tabanli frontend katmaninin guncel klasor yapisini ve Vertical Slice Architecture (VSA) ile Atomic Design ilkelerinin nasil birlikte kullanildigini ozetler. Tum ornekler `frontend/src` agacindan alinmistir.
+Bu rehber Next.js 15 tabanli frontend katmaninda Vertical Slice Architecture (VSA) ile Atomic Design ilkelerinin nasil birlikte kullanildigini ozetler. Dizindeki ornekler `frontend/src` agacina gore guncellenmistir.
 
-## Dizim Ozet (Eylul 2025)
-
+## 1. Dizin Ozet (Ekim 2025)
 ```
 src/
-  app/
-    (auth)/
-      layout.tsx
-      login/page.tsx
-      register/page.tsx
-    admin/page.tsx
-    dashboard/page.tsx
-    teacher/page.tsx
-    layout.tsx
-    page.tsx
-  components/
-    atoms/
-      button.tsx
-      input.tsx
-      label.tsx
-    molecules/
-      form.tsx
-    organisms/
-      auth-card.tsx
-    templates/
-      AuthLayout.tsx
-      MainLayout.tsx
-    ui/
-      button.tsx
-      card.tsx
-      form.tsx
-      input.tsx
-      label.tsx
+  app/(auth)/{layout.tsx,login/page.tsx,register/page.tsx}
+  app/{admin,page.tsx,dashboard/page.tsx,teacher/page.tsx,layout.tsx}
+  components/{atoms,molecules,organisms,templates,ui}
   features/
-    auth/
-      components/
-        login-form.tsx
-        register-form.tsx
-        role-guard.tsx
-      hooks/
-        use-login.ts
-        use-register.ts
-      services/
-        auth-service.ts
-      store/
-        auth-store.ts
-      types/
-        auth.types.ts
-    dashboard/
-      pages/
-        admin-panel-page.tsx
-        dashboard-page.tsx
-        teacher-panel-page.tsx
-    site/
-      pages/
-        home-page.tsx
-  shared/
-    hooks/use-auth.ts
-    services/http-client.ts
-    store/auth-store.ts
-    types/auth.ts
-    utils/{auth.ts,jwt.ts}
+    auth/{components/hooks/services/store/types}
+    dashboard/pages
+    site/pages
+  shared/{hooks,use-auth.ts,services/http-client.ts,store/auth-store.ts,types,utils}
   lib/utils.ts
 ```
 
-## Atomic Katmanlari
+## 2. Atomic Katmanlari
+- Atoms: Temel buton, input, label bilesenleri `components/atoms` ve shadcn uyarlamalari `components/ui` altinda.
+- Molecules: Form gibi tekrar eden kombinasyonlar `components/molecules` dizininde.
+- Organisms: AuthCard gibi karmasik bloklar `components/organisms` altinda tutulur.
+- Templates: `AuthLayout` ve `MainLayout` sayfa duzenini tanimlar; App Router layout dosyalari bu sablonlari kullanir.
 
-- **Atoms:** `components/atoms` klasorundaki `button.tsx`, `input.tsx`, `label.tsx` temel HTML sarmalayan sade parcalardir. Shadcn UI stilleri `components/ui` altinda tutulur.
-- **Molecules:** `components/molecules/form.tsx` gibi bilesenler atoms kombinasyonlarindan olusur ve tekrar eden form alt bolumlerini kapsar.
-- **Organisms:** `components/organisms/auth-card.tsx` gibi daha zengin bloklar auth sayfalarinda tekrar kullanilir.
-- **Templates:** `components/templates/AuthLayout.tsx` ve `MainLayout.tsx` sayfa duzenini belirler ve App Router icinde layout bile komponentleri ile eslesir.
+## 3. Vertical Slice Dilimleri
+- Auth slice: Login/Register formlari, `use-login`, `use-register` hook lari, Zustand tabanli auth store ve API servisini barindirir. `role-guard.tsx` rota seviyesinde yetki kontrolu yapar.
+- Dashboard slice: Rol bazli dashboard, admin ve ogretmen sayfalarini hazirlayan presentational bilesenleri saglar.
+- Site slice: Landing sayfasini (`home-page.tsx`) tutar.
+- Paylasilan tipler ve servisler `shared/` altina konulur; slice lar dogrudan birbirlerinin kodunu import etmez.
 
-## Vertical Slice Dilimleri
+## 4. Ortak Servisler
+- `shared/services/http-client.ts` apiFetch fonksiyonu ile Authorization header ekler, 401 durumunda otomatik refresh calistirir, iki denemeden sonra store u temizler.
+- `shared/store/auth-store.ts` access/refresh token lari saklar ve `setTokens`, `clear` aksiyonlarini saglar.
+- `shared/hooks/use-auth.ts` guard bilesenleri icin auth durumunu, rolleri ve subject scope listesini saglar.
 
-- **Auth slice:** `features/auth` altinda form bilesenleri, React hooks (`use-login`, `use-register`), API katmani (`auth-service.ts`) ve Zustand store (`auth-store.ts`) bir aradadir. `role-guard.tsx` App Router sayfalarinda yetki kontrolu icin kullanilir.
-- **Dashboard slice:** `features/dashboard/pages/*` kullanici rolune gore ekrani hazirlayan presentational sayfa parcalari saglar. Bu sayfalar `app/dashboard`, `app/admin` ve `app/teacher` route dizinleri tarafindan kullanilir.
-- **Site slice:** `features/site/pages/home-page.tsx` ana landing icin tutulan placeholder bilesendir.
+## 5. App Router Eslesmeleri
+- `(auth)/layout.tsx` auth sayfalarini `AuthLayout` ile sarar.
+- `(auth)/login/page.tsx` ve `(auth)/register/page.tsx` slice bilesenlerini kullanarak form render eder.
+- `dashboard/page.tsx` kullanicinin rolune gore dogru panel bilesenini secen orchestrator dir.
+- `admin/page.tsx` ve `teacher/page.tsx` RoleGuard ile korunur.
 
-Her slice kendi dizininde calisan kodu saklar; paylasilan servisler veya tipler `shared/` altina alinmistir. Dilimler arasi bagimlilik sadece bu paylasilan katman uzerinden kurulur.
-
-## Ortak Servis ve Store Katmani
-
-- `shared/services/http-client.ts` tum API isteklerini yonetir, JWT header ekler ve hatalari standartlestirir.
-- `shared/store/auth-store.ts` global oturum durumunu saklar ve `features/auth` icinde yeniden kullanilir.
-- `shared/hooks/use-auth.ts` guard bilesenlerine oturum, roller ve router entegrasyonu saglar.
-
-Bu katmanlarin tamami client-side calisir; Next.js server componentlerinde kullanilacaksa ayri adapterler gerekir.
-
-## App Router Eslesmeleri
-
-- `(auth)/layout.tsx` auth sayfalarini `AuthLayout` sablonu ile sarmalar.
-- `(auth)/login/page.tsx` ve `(auth)/register/page.tsx` slice bilesenlerini kullanarak formlari render eder.
-- `dashboard/page.tsx` oturum rolu ile uyumlu dashboard sayfasini secmek icin `features/dashboard/pages/dashboard-page.tsx` dosyasini kullanir.
-- `admin/page.tsx` ve `teacher/page.tsx` ilgili panel sayfalarini `RoleGuard` ile sarmalar.
-
-## Kod Ornekleri
-
+## 6. Kod Ornekleri
 ```tsx
-// components/templates/MainLayout.tsx
 export function MainLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-muted/10">
@@ -111,35 +52,29 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   );
 }
 ```
-
 ```tsx
-// features/auth/components/login-form.tsx
 export function LoginForm() {
   const { mutateAsync, isPending } = useLogin();
-  // form state ve submit handler burada toplanir
   return (
     <AuthCard title="Giris Yap">
       <Form {...form}>
         {/* input alanlari */}
       </Form>
+      <Button disabled={isPending} type="submit">Devam</Button>
     </AuthCard>
   );
 }
 ```
 
-## Gelistirme Notlari
+## 7. Gelistirme Notlari
+- Refresh token akisi artik apiFetch icinde otomatik. Yeni servisler `skipAuthRefresh` bayragi ile bu davranisi kapatabilir.
+- RoleGuard `useAuth` hook undan gelen roller ve subjectScopes degerlerini kontrol eder; backend CASL kurallari ile uyumludur.
+- Atomic katmanda kullanilan Tailwind token lari (globals.css) tum bilesenlerde tutarliligi saglar.
+- UTF 8 karakter sorunu halen backlog da; yeni icerikte ASCII kullanimi tercih edilmelidir.
 
-1. UTF-8 karakter sorunlari henuz tamamen giderilmedi; `docs/tasks-todo.md` icerisinde acik gorev olarak takip ediliyor.
-2. Refresh token rotasyonu ve 401 yakalama akisi front-end tarafinda eksik, guard bilesenleri prod ortamina alinmadan once tamamlanmali.
-3. Role bazli sayfalar su anda placeholder icerik gosteriyor; kurs ve enrollment slice eklendiginde VSA yapisi genisletilecek.
+## 8. Tailwind Tema ve Tasarim Tokenleri
+- Renkler, tipografi, spacing ve radius degerleri globals.css icindeki CSS degiskenleri ile yonetilir.
+- `components/ui` altindaki temel atomlar bu degiskenleri dogrudan kullanir; molecules ve organisms seviye custom hex degerleri kullanmamalidir.
+- Dark mode desteklenir; `prefers-color-scheme: dark` blogu token degerlerini degistirir.
 
-Bu rehber yeni feature eklerken dizin yapisini ve katman sorumluluklarini hizli sekilde hatirlatmak icin guncellenmelidir.
-## Tailwind Tema ve Tasarım Tokenleri
-
-- **Renk paleti:** `frontend/src/app/globals.css` içinde `:root` seviyesinde tanımlanan `--foreground`, `--background`, `--primary`, `--muted` gibi tokenlar `components/ui` katmanındaki atomlar tarafından otomatik olarak kullanılır.
-- **Typografi:** `globals.css` içindeki `--font-sans` ve `--font-mono` tanımları `body` ve `code` seviyesinde uygulanır; atoms/molecules katmanı ekstra font seçimi yapmaz.
-- **Spacing & radius:** `--radius`, `--spacing-base` gibi değerler `button`, `card`, `form` gibi atomlarda `rounded-md`, `px-4` vb. utility sınıflarıyla eşleşir. Tasarım değişiklikleri için token güncellemek yeterlidir.
-- **Durum renkleri:** `--destructive`, `--ring`, `--muted-foreground` gibi tonlar toast, uyarı kartı ve tablo satırlarında tekrar kullanılır; molecules/organisms seviyesinde doğrudan hex kodu kullanılmaz.
-- **Dark mode:** Token seti `@media (prefers-color-scheme: dark)` bloğu ile yansıtılır; atomic bileşenler ek koşul tanımlamadığından tema geçişi merkezi olarak yönetilir.
-
-Bu rehber ile Atomic katmanlardaki tüm görsel kararlar Tailwind tokenlarına bağlanarak tutarlılık sağlanır.
+Bu dokuman yeni frontend slice leri, guard kararlarini veya tema guncellemelerini ekledikten sonra tekrar guncellenmelidir.

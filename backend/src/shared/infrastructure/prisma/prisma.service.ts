@@ -1,4 +1,4 @@
-﻿import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma, PrismaClient } from '@prisma/client';
 
@@ -45,6 +45,11 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   get refreshToken() {
     return this.delegate.refreshToken;
   }
+
+  get httpRequestLog() {
+    return this.delegate.httpRequestLog;
+  }
+
 
   get role() {
     return this.delegate.role;
@@ -101,3 +106,6 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.$extends.bind(this.client);
   }
 }
+
+
+

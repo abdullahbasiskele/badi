@@ -1,4 +1,4 @@
-﻿import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Prisma } from '@prisma/client';
 import { Request } from 'express';
@@ -63,6 +63,7 @@ export class PoliciesGuard implements CanActivate {
     | Prisma.EnrollmentWhereInput
     | Prisma.LessonWhereInput
     | Prisma.UserWhereInput
+    | Prisma.HttpRequestLogWhereInput
     | undefined {
     switch (subject) {
       case 'Course':
@@ -73,6 +74,8 @@ export class PoliciesGuard implements CanActivate {
         return conditions as Prisma.LessonWhereInput;
       case 'User':
         return conditions as Prisma.UserWhereInput;
+      case 'HttpRequestLog':
+        return conditions as Prisma.HttpRequestLogWhereInput;
       default:
         return undefined;
     }

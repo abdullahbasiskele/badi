@@ -1,96 +1,57 @@
-﻿# Kurs Platformu Nihai Mimari Değerlendirme (Feature-Paketli Clean)
+# Kurs Platformu Nihai Mimari Degerlendirme (Feature Paketli Clean)
 
-> Kaynaklar: docs/main.md, docs/main-review.md, docs/hybrid-structure.md. Seçilen yapı: **Feature-Paketli Clean**.
+> Kaynaklar: docs/main.md, docs/main-review.md, docs/hybrid-structure.md. Secilen tur: Feature Paketli Clean.
 
 ## 1. Genel Durum
-- Monolitik VSA + CQRS yaklaşımı korunurken her özellik `features/<feature>` klasöründe mini-clean katmanlarıyla paketlendi.
-- Clean Architecture katmanları (`domain`, `application`, `infrastructure`, `presentation`) feature klasörleri içinde yinelendi; ortak nesneler `shared/` altında toplandı.
-- Teknoloji yığını (Node.js 22, NestJS 11, PostgreSQL 18, Prisma 6, Valkey/BullMQ) ana dokümana uygun şekilde hedefleniyor.
+- Monolitik VSA + CQRS yapisi aktif; her ozellik `features/<slice>` dizininde mini clean katmanlariyla paketlendi.
+- Auth, Teacher, Course ve yeni Audit Log slice lari repository + PrismaUnitOfWork altyapisini kullaniyor.
+- AppCommandBus ve AppQueryBus global olarak tanimli; validation ve transaction pipeline leri komutlar icin zorunlu hale geldi.
+- HttpRequestLoggingInterceptor tum HTTP isteklerini yakalayip AuditTrailService e yonlendiriyor; audit kayitlari BullMQ veya dogrudan komut bus i uzerinden islenebiliyor.
 
-## 2. Yapı Kurallarına Uyum
-- **Dizin iskeleti:** `features/user`, `features/role`, `features/permission`, `features/form`, `features/lesson`, `features/teacher` klasörlerinde domain/application/infrastructure/presentation/tests şablonu uygulanacak.
-- **Politika yönetimi:** CASL ve RLS kuralları `application/policies` altında policy-as-code yaklaşımıyla versiyonlanacak; `tests/contract` klasörü politika ve DTO uyumunu doğrulayacak.
-- **CQRS pipeline:** Ortak davranışlar `shared/application/pipeline` (validation, authorization, transaction) altında tutulacak; mediator aracılığıyla feature handler'larına ulaştırılacak.
-- **Domain event akışı:** `domain/events` altındaki event'ler `infrastructure/messaging` üzerinden BullMQ/Valkey ile yayınlanarak audit, bildirim ve raporlama gibi yan etkiler izole edilecek.
+## 2. Yapilanma Kurallari ve Durum
+- Dizin iskeleti Feature Paketli Clean sablonunu takip ediyor (domain, application, infrastructure, presentation, tests).
+- CASL/RLS kurallari `shared/application/policies` altinda merkezi; audit log icin yeni subject destegi eklendi.
+- CQRS pipeline: validation > authorization > transaction > audit > logging. Transactional komutlar `@TransactionalCommand` dekoratoru ile isaretleniyor.
+- Domain event akisi BullMQ icin hazir; audit trail, ileride bildirim servisleri icin yeniden kullanilabilir bir ornek sagliyor.
 
-## 3. Güncellenen Risk ve Aksiyonlar
-- **Kimlik/Yetki karmaşıklığı:** Passkey + Keycloak + e-Devlet akışları için sequence diyagramları hazırlanacak; Keycloak özelleştirmeleri (tema/SPI) ekip içindeki müdür ve iki geliştirici tarafından yönetilecek.
-- **CASL + RLS performansı:** Örnek politikalar policy klasöründe tutulacak, Prisma sorguları için `EXPLAIN ANALYZE` PoC'si planlandı; indeksler (subject_id, instructor_id) roadmap'te.
-- **Cache/kuyruk seçimi:** Valkey/BullMQ birincil; PostgreSQL tabanlı kuyruk yedek plan olarak belirlendi. Operasyon ekibi mesai saatlerinde yönetim yapacağı için otomatik retry/alert kuralları tanımlanacak.
-- **Gözlemlenebilirlik:** OpenTelemetry yanı sıra metrik/sinyal hedefleri (standart SLA/SLO) referans alınacak; dashboard'lar mesai içi destek modeline göre düzenlenecek.
-- **KVKK uyumu:** Veri saklama matrisi, otomatik silme/bulanıklaştırma işleri ve domain-event tetikleyicileri backlog'a eklendi.
-- **Test kapsamı:** Feature içi unit/integration/contract testleri zorunlu; CASL/RLS politika testleri `tests/policies` ile otomasyona bağlanacak.
+## 3. Guncel Riskler ve Eylemler
+- **Kimlik karma sikligi:** Passkey + Keycloak + e Devlet akislari icin dokumantasyon eksik. Sequence diyagramlari backlog da.
+- **CASL + RLS performansi:** Audit tablosu dahil olmak uzere tum kritik tablolarda RLS aktif. EXPLAIN testleri ve indeksler (organization_id, status_code) planlandi.
+- **Kuyruk stratejisi:** AuditTrailService queue fallback ile calisiyor ancak prod ortam icin BullMQ cluster konfiguru edilmedi. Operasyon planinda TODO.
+- **Observability:** OpenTelemetry pipeline hazir fakat dashboard ve alert matrisleri henuz yazilmadi.
+- **KVKK:** Audit kayitlari 180 gun saklanacak sekilde budanabiliyor; veri saklama matrisi tum domainler icin tamamlanmadi.
 
-## 4. Örnek Proje İskeleti (Feature-Paketli Clean)
+## 4. Ornek Proje Iskeleti
 ```
 src/
   features/
-    user/
-      domain/
-        entities/
-          User.ts
-        rules/
-          UserEligibilityRule.ts
-        events/
-          UserRegistered.ts
-      application/
-        commands/
-          register-user/
-            RegisterUserCommand.ts
-            RegisterUserHandler.ts
-            RegisterUserValidator.ts
-          update-user-profile/
-            UpdateUserProfileCommand.ts
-            UpdateUserProfileHandler.ts
-        queries/
-          get-user-profile/
-            GetUserProfileQuery.ts
-            GetUserProfileHandler.ts
-        policies/
-          userPermissions.policy.ts
-      infrastructure/
-        repositories/
-          PrismaUserRepository.ts
-        cache/
-          UserCacheService.ts
-        messaging/
-          UserEventPublisher.ts
-      presentation/
-        http/
-          RegisterUserEndpoint.ts
-          GetUserProfileEndpoint.ts
-        graphql/
-          UserResolver.ts
+    audit-log/
+      domain/{entities,factories}
+      application/{commands,queries,services}
+      infrastructure/{repositories,workers}
       tests/
-        unit/
-        integration/
-        contract/
-    role/
-    permission/
-    form/
-    lesson/
+    auth/
+    course/
     teacher/
+    user/
   shared/
-    domain/
-      base-entity.ts
-      domain-events.ts
-    application/
-      mediator.ts
-      pipeline/
-        validationBehavior.ts
-        authorizationBehavior.ts
-        transactionBehavior.ts
-    infrastructure/
-      prisma-client.ts
-      messaging/
-        bullmq-client.ts
-    presentation/
-      api-errors.ts
-  config/
-    env/
-    auto-migrations/
+    application/{pipeline,policies,uow}
+    infrastructure/{logging,prisma,messaging}
 ```
-- Feature klasörleri aynı şablonu takip eder; örneğin `lesson` diliminde `CreateLessonCommand`, `LessonScheduled` event’i ve `LessonEnrollmentPolicy` dosyaları yer alır.
-- `shared/application/pipeline` CQRS davranışlarını merkezi yönetir; özellikler mediator üzerinden iletişim kurar.
-- `tests/contract` klasörü OpenAPI/GraphQL sözleşmelerini, `tests/policies` yük dağılımı ve RLS eşleşmesini doğrular.
+- Audit slice application katmaninda hem RecordHttpRequestLog hem de DeleteOldHttpLogs komutlarini barindiriyor.
+- Infrastructure katmaninda BullMQ producer ve worker modulleri mevcut.
+- Shared pipeline AppCommandBus ve PrismaUnitOfWork siniflarini iceriyor.
 
+## 5. Karar Ozeti
+1. Vertically sliced monolit mimarisi korunuyor.
+2. Audit loglama merkezi bir slice ile cozuldu; CASL ve RLS entegrasyonlu tutorial dokumante edildi.
+3. Transaction ve validation davranislari AppCommandBus ile zorunlu hale getirildi.
+4. BullMQ istege bagli; kuyruk olmadiginda sistem komut bus i uzerinden ayni fonksiyonu goruyor.
+
+## 6. Tavsiyeler
+- Audit log verilerini raporlamak icin contract testleri ve listeleme sorgusu icin pagination testleri ekle.
+- BullMQ baglantisini production hazir hale getirmek adina `AUDIT_LOG_QUEUE_URL` ortam degiskenini CI/CD pipeline lari ile yonet.
+- CASL policy regressionlarini `tests/policies` dizininde otomatik hale getir ve audit tablosu icin ornek senaryolar ekle.
+- OpenTelemetry collector, dashboard ve alarm setlerini sprint 4 kapsaminda tamamla.
+
+Bu degerlendirme guncel kod tabaninin durumunu yansitir. Yeni slice eklenirken (ornek enrollment) ayni kurallar uygulanmali ve dokuman en gec sprint demosu sonrasinda guncellenmelidir.
