@@ -18,7 +18,7 @@
 
 ## 3. Frontend & UX
 - [x] Next.js uygulamasında login/register/dashboard sayfalarını ve toast bildirimlerini hazırla.
-- [x] Tüm Türkçe içerik, validasyon mesajları ve hata metinlerinde UTF-8 karakter sorunlarını gider.
+- [ ] Tüm Türkçe içerik, validasyon mesajları ve hata metinlerinde UTF-8 karakter sorunlarını gider.
 - [x] `apiFetch` isteklerine access token taşıyan Authorization başlığını ekle.
 - [ ] Refresh token rotasyonu ve 401 yakalama/yenileme akışını uygula.
 - [x] Logout işlemini backend `/auth/logout` endpointini entegre ederek store temizliğini tamamla.

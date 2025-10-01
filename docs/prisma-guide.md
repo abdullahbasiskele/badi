@@ -51,5 +51,5 @@ DATABASE_DIRECT_URL="postgresql://postgres:postgres@127.0.0.1:5432/badi_db?schem
 ## Notlar
 - `schema.prisma` dosyasını git takibine almıyoruz; script her komut öncesi üretir.
 - `prisma` alanı `package.json` içinde deklare edildi ancak Prisma 7 ile `prisma.config.ts` kullanımı öneriliyor; ileride geçiş planlanmalı.
-- Seed betiğinde şimdilik parolalar ve token hash’leri yer tutucu olarak `demo-hash` şeklinde. Gerçek ortamda güçlü hash’lerle değiştirilmelidir.
+- Seed betiginde parolalar Argon2 ile hashlenir ve refresh token sirri hashli saklanir; yer tutucu `demo-hash` artik kullanilmiyor.
 - Migration isimleri zaman damgasıyla oluştu (`20250930073220_init` vb.); ortak çalışmalarda merge sırasında dikkat edilmeli.

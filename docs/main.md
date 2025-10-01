@@ -19,6 +19,7 @@
 - **VSA:** Her özellik dilimi (“feature slice”) kendi controller/DTO/komut/sorgu/validator/repository sınırına sahiptir. Dilimler arası bağımlılık minimum tutulur.
 - **CQRS:** Komut (yazma) ve sorgu (okuma) yolları ayrılır; **Mediator** üzerinden yönlendirilir.
 - **Pipeline davranışları (sıra):** Doğrulama → Yetkilendirme (CASL) → Idempotency (yalnız komutlar) → Transaction (UoW) → Önbellek (yalnız sorgular) → Audit → Gözlemlenebilirlik → Hata eşleme.
+> **Durum Notu (2025-Q4):** NestJS `CqrsModule` henüz `AppModule` seviyesinde devreye alınmadı; komut/sorgu boru hattının doğrulama, transaction ve logging adımları planlama aşamasında.
 - **Transaction sınırı:** Komut akışlarında tek işlem; sorgularda yalnız okuma ve önbellek.
 
 ---
@@ -165,3 +166,5 @@
 - Mevcut mimari (VSA + CQRS/Mediator, OAuth2/JWT, CASL, Audit, UoW/Repository, monolith) korunmuştur.
 - 2025’e uygun güncellemeler: Node.js 22 LTS, NestJS 11.x, PostgreSQL 18, Prisma 6.x, Valkey/Redis, Keycloak (OIDC/SAML), Passkeys/WebAuthn, OpenTelemetry ve OpenAPI 3.2.
 - Branş/kategori bazlı görünürlük gereksinimi, **CASL + @casl/prisma** ve kritik tablolarda **RLS** ile **iki katmanlı** ele alınmıştır.
+
+

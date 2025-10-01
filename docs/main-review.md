@@ -14,11 +14,12 @@
 - **Çok katmanlı güvenlik:** Passkey, CASL, RLS, audit loglama ve token yönetimiyle savunma hattı güçlendirilmiş.
 - **Operasyonel farkındalık:** OpenTelemetry, yapılandırılmış loglama, önbellek ısındırma ve yedekleme/DR planları dokümante edilmiş.
 - **Sözleşme odaklı geliştirme:** OpenAPI 3.2, Spectral lint, test piramidi ve CI/CD adımları netleştirilmiş.
-- **Gerçekçi yol haritası:** 6-8 haftalık sprint yapısı altyapı → domain özellikleri → sertleştirme sırasını mantıklı kılıyor.
+- **Gerçekçi yol haritası:** 6-8 haftalık sprint yapısı altyapı › domain özellikleri › sertleştirme sırasını mantıklı kılıyor.
 
 ## 3. Riskler ve Eksik Bölgeler
 - **Kimlik/Yetki karmaşıklığı:** Passkey + Keycloak + e-Devlet akışı kullanıcı deneyimi ve kurtarma senaryoları için detaylandırılmalı.
 - **CASL + RLS performansı:** İnce taneli politikalar sorguları ağırlaştırabilir; indeksleme notu mevcut ancak ölçüm planı yok.
+- **CQRS uygulama boşluğu:** AppModule düzeyinde mediator boru hattı henüz devreye alınmadı; komut/sorgu handler'ları ortak pipeline davranışlarını (validation, logging, transaction) paylaşmıyor.
 - **Önbellek ve kuyruk seçimi:** Valkey/Redis ile PostgreSQL tabanlı alternatif arasında karar kriterleri belirtilmemiş.
 - **Gözlemlenebilirlik kapsamı:** İzleme (tracing) tanımlanmış olsa da metrik, uyarı, SLO ve incident süreçleri eksik.
 - **KVKK uygulaması:** PII ayrıştırma vurgulanmış; ancak veri sınıflandırması, DSR otomasyonu ve anahtar yenileme politikaları net değil.
@@ -34,7 +35,7 @@
 ### Orta Vadede (geliştirme sırasında)
 - CASL + Prisma için otomatik politika testleri ve paylaşılabilir fixture setleri hazırla; kapsam genişledikçe regresyonu önle.
 - Önbellek/kuyruk ve Keycloak kesintileri için dayanıklılık senaryoları (chaos testleri, gecikme simülasyonları) uygula.
-- Ürün metriklerini (başvuru → onay dönüşü, eğitmen onboarding) teknik metriklerle birlikte izlemeye başla.
+- Ürün metriklerini (başvuru › onay dönüşü, eğitmen onboarding) teknik metriklerle birlikte izlemeye başla.
 - KVKK uyumu için veri saklama matrisi ve otomatik silme/bulanıklaştırma iş akışları tasarla.
 
 ### Uzun Vadede (canlı sonrası)
@@ -54,4 +55,6 @@
 - Kimlik akışları ve CASL + RLS performansı için PoC çalışmalarını önceliklendir; resmi geliştirme öncesi risk azalt.
 - Güvenlik ve KVKK ekipleriyle erken eşleşerek denetim, saklama ve audit gereksinimlerini sprint planına yerleştir.
 - Teknik (p95, hata oranı) ve iş metriklerini (kurs tamamlama, eğitmen memnuniyeti) aynı tabloda takip eden dashboard hazırla.
+
+
 
