@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -37,11 +37,10 @@ export function RegisterForm() {
   const { handleSubmit, pending } = useRegisterForm();
 
   const submit = async (values: RegisterFormValues) => {
-    const { confirmPassword: _ignored, ...payload } = values;
     const registerPayload: RegisterPayload = {
-      email: payload.email,
-      password: payload.password,
-      displayName: payload.displayName?.trim() ? payload.displayName.trim() : undefined,
+      email: values.email,
+      password: values.password,
+      displayName: values.displayName?.trim() ? values.displayName.trim() : undefined,
     };
 
     await handleSubmit(registerPayload);

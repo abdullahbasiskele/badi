@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ export function HomePage() {
 
   const isParticipant = roles.includes("participant");
   const isTeacher = roles.includes("teacher");
-  const isAdmin = roles.some(role => ["system-admin", "organization-admin"].includes(role));
+  const isAdmin = roles.some((role) => ["system-admin", "organization-admin"].includes(role));
 
   return (
     <main className="container mx-auto flex min-h-screen flex-col items-center justify-center gap-8 px-4 text-center">
@@ -35,12 +35,12 @@ export function HomePage() {
         )}
         {isTeacher && (
           <p>
-            Öğretmen rolündesiniz. Üst menüden "Öğretmen Paneli" bağlantısını kullanarak ders planlarınızı yönetebilirsiniz.
+            Öğretmen rolündesiniz. Üst menüden &quot;Öğretmen Paneli&quot; bağlantısını kullanarak ders planlarınızı yönetebilirsiniz.
           </p>
         )}
         {isAdmin && (
           <p>
-            Yönetici rolündesiniz. "Yönetim Paneli" üzerinden organizasyon yapılandırmasını sürdürebilirsiniz.
+            Yönetici rolündesiniz. &quot;Yönetim Paneli&quot; üzerinden organizasyon yapılandırmasını sürdürebilirsiniz.
           </p>
         )}
       </div>

@@ -1,5 +1,5 @@
-import { IQueryHandler, Query, QueryHandler } from '@nestjs/cqrs';
-import { PrismaService } from '@shared/infrastructure/prisma/prisma.service';
+﻿import { IQueryHandler, Query, QueryHandler } from '@nestjs/cqrs';
+import { AuthUserRepository } from '@features/auth/infrastructure/repositories';
 import { AuthUserWithRelations } from '../../models/auth-user.model';
 
 export class GetAuthUserByEmailQuery extends Query<AuthUserWithRelations | null> {
@@ -13,19 +13,9 @@ export class GetAuthUserByEmailHandler
   implements
     IQueryHandler<GetAuthUserByEmailQuery, AuthUserWithRelations | null>
 {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly authUsers: AuthUserRepository) {}
 
-  async execute(
-    query: GetAuthUserByEmailQuery,
-  ): Promise<AuthUserWithRelations | null> {
-    const { email } = query;
-    return this.prisma.user.findUnique({
-      where: { email },
-      include: {
-        roles: { include: { role: true } },
-        subjectScopes: true,
-        organization: true,
-      },
-    });
+  execute(query: GetAuthUserByEmailQuery): Promise<AuthUserWithRelations | null> {
+    return this.authUsers.findAuthUserByEmail(query.email);
   }
 }

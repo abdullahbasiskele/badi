@@ -1,16 +1,17 @@
-import { Module } from '@nestjs/common';
+﻿import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CqrsModule } from '@nestjs/cqrs';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { AbilityFactory } from '../../shared/application/policies/ability.factory';
-import { AuthController } from './auth.controller';
+import { AuthController } from './presentation/http/auth.controller';
 import { AuthService } from './auth.service';
 import { commandHandlers } from './application/commands';
 import { queryHandlers } from './application/queries';
 import { RefreshTokenService } from './application/services/refresh-token.service';
 import { JwtAccessGuard } from './application/guards/jwt-access.guard';
 import { JwtAccessStrategy } from './infrastructure/strategies/jwt-access.strategy';
+import { AuthUserRepository, RefreshTokenRepository, RoleRepository } from './infrastructure/repositories';
 
 @Module({
   imports: [
@@ -40,9 +41,20 @@ import { JwtAccessStrategy } from './infrastructure/strategies/jwt-access.strate
     JwtAccessStrategy,
     JwtAccessGuard,
     AbilityFactory,
+    AuthUserRepository,
+    RoleRepository,
+    RefreshTokenRepository,
     ...commandHandlers,
     ...queryHandlers,
   ],
-  exports: [AuthService, AbilityFactory, PassportModule, JwtAccessGuard],
+  exports: [
+    AuthService,
+    AbilityFactory,
+    PassportModule,
+    JwtAccessGuard,
+    AuthUserRepository,
+    RoleRepository,
+    RefreshTokenRepository,
+  ],
 })
 export class AuthModule {}

@@ -1,6 +1,6 @@
-import { IQueryHandler, Query, QueryHandler } from '@nestjs/cqrs';
+﻿import { IQueryHandler, Query, QueryHandler } from '@nestjs/cqrs';
 import { RefreshToken } from '@prisma/client';
-import { PrismaService } from '@shared/infrastructure/prisma/prisma.service';
+import { RefreshTokenRepository } from '@features/auth/infrastructure/repositories';
 
 export class GetRefreshTokenByIdQuery extends Query<RefreshToken | null> {
   constructor(public readonly tokenId: string) {
@@ -12,11 +12,9 @@ export class GetRefreshTokenByIdQuery extends Query<RefreshToken | null> {
 export class GetRefreshTokenByIdHandler
   implements IQueryHandler<GetRefreshTokenByIdQuery, RefreshToken | null>
 {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly refreshTokens: RefreshTokenRepository) {}
 
   execute(query: GetRefreshTokenByIdQuery): Promise<RefreshToken | null> {
-    return this.prisma.refreshToken.findUnique({
-      where: { id: query.tokenId },
-    });
+    return this.refreshTokens.findById(query.tokenId);
   }
 }

@@ -1,4 +1,4 @@
-import {
+﻿import {
   BadRequestException,
   Inject,
   Injectable,
@@ -10,7 +10,7 @@ import { CommandBus } from '@nestjs/cqrs';
 import { CQRS_MODULE_OPTIONS } from '@nestjs/cqrs/dist/constants';
 import type { CqrsModuleOptions } from '@nestjs/cqrs';
 import { validate } from 'class-validator';
-import { PrismaService } from '@shared/infrastructure/prisma/prisma.service';
+import { PrismaUnitOfWork } from '@shared/infrastructure/prisma/prisma-unit-of-work';
 import { isTransactionalCommand } from './decorators/transactional-command.decorator';
 
 @Injectable()
@@ -22,7 +22,7 @@ export class AppCommandBus extends CommandBus {
     @Optional()
     @Inject(CQRS_MODULE_OPTIONS)
     options: CqrsModuleOptions | undefined,
-    private readonly prisma: PrismaService,
+    private readonly unitOfWork: PrismaUnitOfWork,
   ) {
     super(moduleRef, options);
   }
@@ -43,7 +43,7 @@ export class AppCommandBus extends CommandBus {
     };
 
     if (isTransactionalCommand(command as object)) {
-      return this.prisma.runInTransaction(run);
+      return this.unitOfWork.withTransaction(async (_tx) => run());
     }
 
     return run();

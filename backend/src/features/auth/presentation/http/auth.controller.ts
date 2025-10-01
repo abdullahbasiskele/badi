@@ -17,14 +17,14 @@ import {
   RefreshAccessTokenCommand,
   RegisterUserCommand,
   RevokeRefreshTokenCommand,
-} from './application/commands';
-import { LoginRequestDto } from './application/dto/login-request.dto';
-import { RefreshTokenDto } from './application/dto/refresh-token.dto';
-import { RegisterRequestDto } from './application/dto/register-request.dto';
-import { TokenResponseDto } from './application/dto/token-response.dto';
-import { JwtAccessGuard } from './application/guards/jwt-access.guard';
-import { AuthProfileDto } from './application/dto/auth-profile.dto';
-import { GetAuthUserByIdQuery } from './application/queries/get-auth-user-by-id/get-auth-user-by-id.query';
+} from '../../application/commands';
+import { LoginRequestDto } from '../../application/dto/login-request.dto';
+import { RefreshTokenDto } from '../../application/dto/refresh-token.dto';
+import { RegisterRequestDto } from '../../application/dto/register-request.dto';
+import { TokenResponseDto } from '../../application/dto/token-response.dto';
+import { JwtAccessGuard } from '../../application/guards/jwt-access.guard';
+import { AuthProfileDto } from '../../application/dto/auth-profile.dto';
+import { GetAuthUserByIdQuery } from '../../application/queries/get-auth-user-by-id/get-auth-user-by-id.query';
 import { AuthUser } from '@shared/application/policies/interfaces/auth-user.interface';
 
 @Controller('auth')

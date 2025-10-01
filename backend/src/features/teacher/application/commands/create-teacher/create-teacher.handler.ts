@@ -4,7 +4,8 @@ import { RoleKey } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { plainToInstance } from 'class-transformer';
 import { AuthService } from '@features/auth/auth.service';
-import { PrismaService } from '@shared/infrastructure/prisma/prisma.service';
+import { AuthUserRepository, RoleRepository } from '@features/auth/infrastructure/repositories';
+import { TeacherRepository } from '@features/teacher/infrastructure/repositories/teacher.repository';
 import { CreateTeacherCommand } from './create-teacher.command';
 import { CreateTeacherResponseDto } from '../../dto/create-teacher-response.dto';
 
@@ -14,7 +15,9 @@ export class CreateTeacherHandler
   implements ICommandHandler<CreateTeacherCommand, CreateTeacherResponseDto>
 {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly authUsers: AuthUserRepository,
+    private readonly roles: RoleRepository,
+    private readonly teachers: TeacherRepository,
     private readonly authService: AuthService,
   ) {}
 
@@ -26,10 +29,10 @@ export class CreateTeacherHandler
     const subject = command.subject.trim();
 
     if (!subject) {
-      throw new BadRequestException('Branş (subject) boş olamaz.');
+      throw new BadRequestException('Branş boş olamaz.');
     }
 
-    const existing = await this.prisma.user.findUnique({ where: { email } });
+    const existing = await this.authUsers.findAuthUserByEmail(email);
     if (existing) {
       throw new BadRequestException('Bu e-posta ile kayıtlı kullanıcı zaten mevcut.');
     }
@@ -57,42 +60,32 @@ export class CreateTeacherHandler
       throw new BadRequestException('Lütfen öğretmenin bağlı olacağı organizationId bilgisini sağlayın.');
     }
 
-    const teacherRole = await this.prisma.role.findUnique({
-      where: { key: RoleKey.TEACHER },
-    });
-
+    const teacherRole = await this.roles.findByKey(RoleKey.TEACHER);
     if (!teacherRole) {
       throw new InternalServerErrorException('TEACHER rolü tanımlı değil.');
     }
 
     const password = command.password?.trim() || this.generatePassword();
     const temporaryPassword = command.password ? null : password;
-
     const passwordHash = await this.authService.hashPassword(password);
 
-    const created = await this.prisma.runInTransaction(async () =>
-      this.prisma.user.create({
-        data: {
-          email,
-          displayName,
-          passwordHash,
-          organizationId,
-          roles: {
-            create: [{ role: { connect: { id: teacherRole.id } } }],
-          },
-          subjectScopes: {
-            create: [{ subject }],
-          },
-        },
-      }),
-    );
+    const created = await this.teachers.createTeacher({
+      email,
+      displayName,
+      passwordHash,
+      organizationId,
+      roleId: teacherRole.id,
+      subject,
+    });
+
+    const createdSubject = created.subjectScopes.at(0)?.subject ?? subject;
 
     return plainToInstance(CreateTeacherResponseDto, {
       id: created.id,
       email: created.email,
       displayName: created.displayName,
-      subject,
-      organizationId,
+      subject: createdSubject,
+      organizationId: created.organizationId ?? null,
       temporaryPassword,
     });
   }

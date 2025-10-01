@@ -1,31 +1,33 @@
 ﻿import { BadRequestException } from '@nestjs/common';
 import { CreateTeacherHandler } from '../application/commands/create-teacher/create-teacher.handler';
 import { CreateTeacherCommand } from '../application/commands/create-teacher/create-teacher.command';
-import type { PrismaService } from '@shared/infrastructure/prisma/prisma.service';
 import type { AuthService } from '@features/auth/auth.service';
+import type { AuthUserRepository, RoleRepository } from '@features/auth/infrastructure/repositories';
+import type { TeacherRepository } from '@features/teacher/infrastructure/repositories/teacher.repository';
 
-const prismaMock = () => ({
-  user: {
-    findUnique: jest.fn(),
-    create: jest.fn(),
-  },
-  role: {
-    findUnique: jest.fn(),
-  },
-  runInTransaction: jest.fn(),
-});
+function createHandler() {
+  const authUsers = {
+    findAuthUserByEmail: jest.fn(),
+    findAuthUserById: jest.fn(),
+  } as unknown as AuthUserRepository;
 
-describe('CreateTeacherHandler', () => {
+  const roles = {
+    findByKey: jest.fn(),
+  } as unknown as RoleRepository;
+
+  const teachers = {
+    createTeacher: jest.fn(),
+  } as unknown as TeacherRepository;
+
   const authService = {
     hashPassword: jest.fn().mockResolvedValue('hashed'),
   } as unknown as AuthService;
 
-  const setup = () => {
-    const prisma = prismaMock() as unknown as PrismaService;
-    const handler = new CreateTeacherHandler(prisma, authService);
-    return { prisma, handler };
-  };
+  const handler = new CreateTeacherHandler(authUsers, roles, teachers, authService);
+  return { authUsers, roles, teachers, authService, handler };
+}
 
+describe('CreateTeacherHandler', () => {
   const baseCommand = () =>
     new CreateTeacherCommand(
       'teacher@example.com',
@@ -42,22 +44,21 @@ describe('CreateTeacherHandler', () => {
     );
 
   it('creates teacher and returns temporary password when none provided', async () => {
-    const { prisma, handler } = setup();
-    (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
-    (prisma.role.findUnique as jest.Mock).mockResolvedValue({ id: 'role-1' });
-    (prisma.runInTransaction as jest.Mock).mockImplementation(async (fn) => fn());
-    (prisma.user.create as jest.Mock).mockResolvedValue({
+    const { authUsers, roles, teachers, handler } = createHandler();
+    (authUsers.findAuthUserByEmail as jest.Mock).mockResolvedValue(null);
+    (roles.findByKey as jest.Mock).mockResolvedValue({ id: 'role-1' });
+    (teachers.createTeacher as jest.Mock).mockResolvedValue({
       id: 'teacher-1',
       email: 'teacher@example.com',
       displayName: 'Test Teacher',
+      organizationId: 'org-1',
+      subjectScopes: [{ subject: 'Müzik' }],
     });
 
     const result = await handler.execute(baseCommand());
 
-    expect(prisma.user.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ email: 'teacher@example.com', subjectScopes: expect.any(Object) }),
-      }),
+    expect(teachers.createTeacher).toHaveBeenCalledWith(
+      expect.objectContaining({ email: 'teacher@example.com', subject: 'Müzik' }),
     );
     expect(result.temporaryPassword).toBeTruthy();
     expect(result.email).toBe('teacher@example.com');
@@ -65,7 +66,7 @@ describe('CreateTeacherHandler', () => {
   });
 
   it('enforces organization ownership for non system admins', async () => {
-    const { handler } = setup();
+    const { handler } = createHandler();
 
     const command = new CreateTeacherCommand(
       'teacher@example.com',

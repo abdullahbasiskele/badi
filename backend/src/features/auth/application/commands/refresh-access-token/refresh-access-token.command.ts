@@ -1,11 +1,10 @@
 ﻿import { UnauthorizedException } from '@nestjs/common';
-import { CommandHandler, ICommandHandler, QueryBus } from '@nestjs/cqrs';
+import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { TransactionalCommand } from '@shared/application/pipeline/decorators/transactional-command.decorator';
 import { AuthService } from '@features/auth/auth.service';
+import { AuthUserRepository } from '@features/auth/infrastructure/repositories';
 import { TokenResponseDto } from '../../dto/token-response.dto';
 import { RefreshTokenService } from '../../services/refresh-token.service';
-import { GetAuthUserByIdQuery } from '../../queries/get-auth-user-by-id/get-auth-user-by-id.query';
-import { GetRefreshTokenByIdQuery } from '../../queries/get-refresh-token-by-id/get-refresh-token-by-id.query';
 
 @TransactionalCommand()
 export class RefreshAccessTokenCommand {
@@ -19,19 +18,15 @@ export class RefreshAccessTokenHandler
   constructor(
     private readonly authService: AuthService,
     private readonly refreshTokens: RefreshTokenService,
-    private readonly queryBus: QueryBus,
+    private readonly authUsers: AuthUserRepository,
   ) {}
 
   async execute(command: RefreshAccessTokenCommand): Promise<TokenResponseDto> {
     const token = this.authService.parseRefreshToken(command.refreshToken);
 
-    const tokenRecord = await this.queryBus.execute(
-      new GetRefreshTokenByIdQuery(token.tokenId),
-    );
+    const tokenRecord = await this.refreshTokens.findById(token.tokenId);
     if (!tokenRecord || tokenRecord.revokedAt) {
-      throw new UnauthorizedException(
-        'Yenileme tokeni bulunamadı veya geçersiz.',
-      );
+      throw new UnauthorizedException('Yenileme tokeni bulunamadı veya geçersiz.');
     }
 
     if (tokenRecord.expiresAt.getTime() <= Date.now()) {
@@ -50,9 +45,7 @@ export class RefreshAccessTokenHandler
 
     await this.refreshTokens.revoke(tokenRecord.id);
 
-    const user = await this.queryBus.execute(
-      new GetAuthUserByIdQuery(tokenRecord.userId),
-    );
+    const user = await this.authUsers.findAuthUserById(tokenRecord.userId);
     if (!user) {
       throw new UnauthorizedException('Kullanıcı bulunamadı.');
     }

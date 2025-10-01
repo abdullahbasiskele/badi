@@ -20,7 +20,7 @@ export function AdminPanelPage() {
             </p>
             <ul className="list-disc space-y-2 pl-5">
               <li>Kurumsal yöneticiler yalnızca kendi kurumlarına öğretmen ekleyebilir.</li>
-              <li>Sistem yöneticileri farklı kurum ID''leri belirterek merkezi atamalar yapabilir.</li>
+              <li>Sistem yöneticileri farklı kurum ID’leri belirterek merkezi atamalar yapabilir.</li>
               <li>Geçici şifre paylaşımı sonrası öğretmenlerin ilk girişte şifre değiştirmesi önerilir.</li>
             </ul>
           </aside>

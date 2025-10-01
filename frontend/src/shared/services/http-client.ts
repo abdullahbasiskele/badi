@@ -72,7 +72,7 @@ export async function apiFetch<T>(
         { ...options, skipAuthRefresh: true },
         attempt + 1,
       );
-    } catch (error) {
+    } catch {
       authState.clear();
       throw new Error("Oturum süresi doldu. Lütfen yeniden giriş yapın.");
     }
@@ -83,7 +83,7 @@ export async function apiFetch<T>(
     try {
       const data = await response.json();
       message = data?.message ?? data?.error ?? message;
-    } catch (error) {
+    } catch {
       console.error(error);
     }
     throw new Error(message ?? "Beklenmeyen bir hata oluştu.");
