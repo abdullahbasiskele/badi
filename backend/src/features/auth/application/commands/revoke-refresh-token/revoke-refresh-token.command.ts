@@ -1,7 +1,9 @@
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
+import { TransactionalCommand } from '@shared/application/pipeline/decorators/transactional-command.decorator';
 import { AuthService } from '@features/auth/auth.service';
 import { RefreshTokenService } from '../../services/refresh-token.service';
 
+@TransactionalCommand()
 export class RevokeRefreshTokenCommand {
   constructor(public readonly refreshToken: string) {}
 }

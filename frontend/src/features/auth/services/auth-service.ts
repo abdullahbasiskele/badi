@@ -1,5 +1,5 @@
-import { apiPost } from "@/shared/services/http-client";
-import { TokenResponse } from "../types/auth.types";
+import { apiFetch, apiPost } from "@/shared/services/http-client";
+import { AuthProfile, TokenResponse } from "../types/auth.types";
 
 export interface LoginPayload {
   email: string;
@@ -20,7 +20,9 @@ export const authService = {
   },
 
   async refresh(refreshToken: string) {
-    return apiPost<TokenResponse>("/auth/refresh", { refreshToken });
+    return apiPost<TokenResponse>("/auth/refresh", { refreshToken }, {
+      skipAuthRefresh: true,
+    });
   },
 
   async logout(refreshToken: string) {
@@ -28,9 +30,13 @@ export const authService = {
       return;
     }
     try {
-      await apiPost<void>("/auth/logout", { refreshToken });
+      await apiPost<void>("/auth/logout", { refreshToken }, { skipAuthRefresh: true });
     } catch (error) {
       console.error("Logout request failed", error);
     }
+  },
+
+  async getProfile() {
+    return apiFetch<AuthProfile>("/auth/profile");
   },
 };

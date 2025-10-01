@@ -1,4 +1,4 @@
-﻿import { Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { AbilityBuilder } from '@casl/ability';
 import { PrismaAbility, createPrismaAbility } from '@casl/prisma';
 import type { Prisma } from '@prisma/client';
@@ -59,6 +59,9 @@ export class AbilityFactory {
       addRule(AppAction.Manage, 'Course', courseConditions);
       addRule(AppAction.Manage, 'Lesson', lessonConditions);
       addRule(AppAction.Read, 'User', userConditions);
+      addRule(AppAction.Manage, 'User', userConditions);
+      addRule(AppAction.Create, 'User', userConditions);
+      addRule(AppAction.Update, 'User', userConditions);
     }
 
     if (roles.includes('teacher')) {
@@ -95,3 +98,4 @@ export class AbilityFactory {
     return build({ detectSubjectType });
   }
 }
+

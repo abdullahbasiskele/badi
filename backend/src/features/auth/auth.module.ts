@@ -9,6 +9,7 @@ import { AuthService } from './auth.service';
 import { commandHandlers } from './application/commands';
 import { queryHandlers } from './application/queries';
 import { RefreshTokenService } from './application/services/refresh-token.service';
+import { JwtAccessGuard } from './application/guards/jwt-access.guard';
 import { JwtAccessStrategy } from './infrastructure/strategies/jwt-access.strategy';
 
 @Module({
@@ -37,10 +38,11 @@ import { JwtAccessStrategy } from './infrastructure/strategies/jwt-access.strate
     AuthService,
     RefreshTokenService,
     JwtAccessStrategy,
+    JwtAccessGuard,
     AbilityFactory,
     ...commandHandlers,
     ...queryHandlers,
   ],
-  exports: [AuthService, AbilityFactory, PassportModule],
+  exports: [AuthService, AbilityFactory, PassportModule, JwtAccessGuard],
 })
 export class AuthModule {}

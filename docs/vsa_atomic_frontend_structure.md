@@ -134,3 +134,12 @@ export function LoginForm() {
 3. Role bazli sayfalar su anda placeholder icerik gosteriyor; kurs ve enrollment slice eklendiginde VSA yapisi genisletilecek.
 
 Bu rehber yeni feature eklerken dizin yapisini ve katman sorumluluklarini hizli sekilde hatirlatmak icin guncellenmelidir.
+## Tailwind Tema ve Tasarım Tokenleri
+
+- **Renk paleti:** `frontend/src/app/globals.css` içinde `:root` seviyesinde tanımlanan `--foreground`, `--background`, `--primary`, `--muted` gibi tokenlar `components/ui` katmanındaki atomlar tarafından otomatik olarak kullanılır.
+- **Typografi:** `globals.css` içindeki `--font-sans` ve `--font-mono` tanımları `body` ve `code` seviyesinde uygulanır; atoms/molecules katmanı ekstra font seçimi yapmaz.
+- **Spacing & radius:** `--radius`, `--spacing-base` gibi değerler `button`, `card`, `form` gibi atomlarda `rounded-md`, `px-4` vb. utility sınıflarıyla eşleşir. Tasarım değişiklikleri için token güncellemek yeterlidir.
+- **Durum renkleri:** `--destructive`, `--ring`, `--muted-foreground` gibi tonlar toast, uyarı kartı ve tablo satırlarında tekrar kullanılır; molecules/organisms seviyesinde doğrudan hex kodu kullanılmaz.
+- **Dark mode:** Token seti `@media (prefers-color-scheme: dark)` bloğu ile yansıtılır; atomic bileşenler ek koşul tanımlamadığından tema geçişi merkezi olarak yönetilir.
+
+Bu rehber ile Atomic katmanlardaki tüm görsel kararlar Tailwind tokenlarına bağlanarak tutarlılık sağlanır.

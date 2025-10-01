@@ -1,6 +1,10 @@
 import { useCallback, useMemo } from "react";
-import { authService, LoginPayload, RegisterPayload } from "@/features/auth/services/auth-service";
-import type { TokenResponse } from "@/features/auth/types/auth.types";
+import {
+  authService,
+  LoginPayload,
+  RegisterPayload,
+} from "@/features/auth/services/auth-service";
+import type { AuthProfile, TokenResponse } from "@/features/auth/types/auth.types";
 import { useAuthStore } from "@/shared/store/auth-store";
 
 export function useAuth() {
@@ -11,8 +15,14 @@ export function useAuth() {
     refreshExpiresAt,
     roles,
     organizationId,
+    organizationName,
     subjectScopes,
+    userId,
+    email,
+    displayName,
+    permissions,
     setTokens,
+    setProfile,
     clear,
   } = useAuthStore();
 
@@ -33,11 +43,26 @@ export function useAuth() {
       try {
         await authService.logout(refreshToken);
       } catch (error) {
-        console.error('Logout failed', error);
+        console.error("Logout failed", error);
       }
     }
     clear();
   }, [refreshToken, clear]);
+
+  const fetchProfile = useCallback(async (): Promise<AuthProfile> => {
+    const profile = await authService.getProfile();
+    setProfile({
+      roles: profile.roles,
+      subjectScopes: profile.subjectScopes,
+      organizationId: profile.organizationId,
+      organizationName: profile.organizationName,
+      displayName: profile.displayName,
+      email: profile.email,
+      permissions: profile.permissions,
+      userId: profile.id,
+    });
+    return profile;
+  }, [setProfile]);
 
   const isAuthenticated = useMemo(() => Boolean(accessToken), [accessToken]);
 
@@ -48,10 +73,16 @@ export function useAuth() {
     refreshExpiresAt,
     roles,
     organizationId,
+    organizationName,
     subjectScopes,
+    userId,
+    email,
+    displayName,
+    permissions,
     isAuthenticated,
     login,
     register,
     logout,
+    fetchProfile,
   };
 }

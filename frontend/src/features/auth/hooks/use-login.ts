@@ -1,8 +1,8 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useAuth } from "@/shared/hooks/use-auth";
-import { extractNormalizedRoles, resolveRedirectPath } from "@/shared/utils/auth";
+import { extractNormalizedRoles, normalizeRoles, resolveRedirectPath } from "@/shared/utils/auth";
 import type { LoginPayload } from "../services/auth-service";
 
 export function useLoginForm() {
@@ -14,7 +14,9 @@ export function useLoginForm() {
     try {
       setPending(true);
       const tokens = await login(values);
-      const roles = extractNormalizedRoles(tokens.accessToken);
+      const roles = tokens.roles?.length
+        ? normalizeRoles(tokens.roles)
+        : extractNormalizedRoles(tokens.accessToken);
       const redirectPath = resolveRedirectPath(roles);
       toast.success("Giriş başarılı");
       router.push(redirectPath);

@@ -1,11 +1,13 @@
 ﻿import { UnauthorizedException } from '@nestjs/common';
 import { CommandHandler, ICommandHandler, QueryBus } from '@nestjs/cqrs';
+import { TransactionalCommand } from '@shared/application/pipeline/decorators/transactional-command.decorator';
 import { AuthService } from '@features/auth/auth.service';
 import { TokenResponseDto } from '../../dto/token-response.dto';
 import { RefreshTokenService } from '../../services/refresh-token.service';
 import { GetAuthUserByIdQuery } from '../../queries/get-auth-user-by-id/get-auth-user-by-id.query';
 import { GetRefreshTokenByIdQuery } from '../../queries/get-refresh-token-by-id/get-refresh-token-by-id.query';
 
+@TransactionalCommand()
 export class RefreshAccessTokenCommand {
   constructor(public readonly refreshToken: string) {}
 }
@@ -28,13 +30,13 @@ export class RefreshAccessTokenHandler
     );
     if (!tokenRecord || tokenRecord.revokedAt) {
       throw new UnauthorizedException(
-        'Yenileme tokenı bulunamadı veya geçersiz.',
+        'Yenileme tokeni bulunamadı veya geçersiz.',
       );
     }
 
     if (tokenRecord.expiresAt.getTime() <= Date.now()) {
       await this.refreshTokens.revokeSilently(tokenRecord.id);
-      throw new UnauthorizedException('Yenileme tokenının süresi dolmuş.');
+      throw new UnauthorizedException('Yenileme tokeninin süresi doldu.');
     }
 
     const matches = await this.refreshTokens.verifySecret(
@@ -43,7 +45,7 @@ export class RefreshAccessTokenHandler
     );
     if (!matches) {
       await this.refreshTokens.revokeSilently(tokenRecord.id);
-      throw new UnauthorizedException('Yenileme tokenı doğrulanamadı.');
+      throw new UnauthorizedException('Yenileme tokeni doğrulanamadı.');
     }
 
     await this.refreshTokens.revoke(tokenRecord.id);

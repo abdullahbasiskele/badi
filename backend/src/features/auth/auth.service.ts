@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+﻿import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
@@ -23,9 +23,13 @@ export class AuthService {
   async generateTokenResponse(
     user: AuthUserWithRelations,
   ): Promise<TokenResponseDto> {
-    const roles = user.roles.map((r) => r.role.key);
+    const roleKeys = user.roles.map((r) => r.role.key);
+    const normalizedRoles = roleKeys.map((role) =>
+      role.toLowerCase().replace(/_/g, '-'),
+    );
     const subjectScopes = user.subjectScopes.map((scope) => scope.subject);
-    const organizationId = user.organizationId ?? undefined;
+    const organizationId = user.organizationId ?? null;
+    const organizationName = user.organization?.name ?? null;
 
     const accessSecret = this.getRequiredConfig('JWT_ACCESS_SECRET');
     const accessTtl = this.getRequiredConfig('JWT_ACCESS_TTL');
@@ -35,7 +39,7 @@ export class AuthService {
 
     const accessPayload = {
       sub: user.id,
-      roles,
+      roles: normalizedRoles,
       subjectScopes,
       organizationId,
     };
@@ -59,16 +63,24 @@ export class AuthService {
       refreshToken: refreshToken.token,
       accessExpiresIn: this.parseDurationToSeconds(accessTtl),
       refreshExpiresIn: this.parseDurationToSeconds(refreshTtl),
+      userId: user.id,
+      email: user.email,
+      displayName: user.displayName ?? null,
+      roles: normalizedRoles,
+      subjectScopes,
+      organizationId,
+      organizationName,
+      permissions: [],
     });
   }
 
   public parseRefreshToken(token: string): { tokenId: string; secret: string } {
     if (!token || typeof token !== 'string') {
-      throw new UnauthorizedException('Geçersiz yenileme tokenı.');
+      throw new UnauthorizedException('Geçersiz yenileme jetonu.');
     }
     const parts = token.split('.');
     if (parts.length !== 2 || !parts[0] || !parts[1]) {
-      throw new UnauthorizedException('Geçersiz yenileme tokenı.');
+      throw new UnauthorizedException('Geçersiz yenileme jetonu.');
     }
     return { tokenId: parts[0], secret: parts[1] };
   }
@@ -99,6 +111,14 @@ export class AuthService {
     refreshToken: string;
     accessExpiresIn: number;
     refreshExpiresIn: number;
+    userId: string;
+    email: string;
+    displayName: string | null;
+    roles: string[];
+    subjectScopes: string[];
+    organizationId: string | null;
+    organizationName: string | null;
+    permissions: string[];
   }): TokenResponseDto {
     return {
       accessToken: params.accessToken,
@@ -106,6 +126,14 @@ export class AuthService {
       expiresIn: params.accessExpiresIn,
       refreshExpiresIn: params.refreshExpiresIn,
       tokenType: 'Bearer',
+      userId: params.userId,
+      email: params.email,
+      displayName: params.displayName,
+      roles: params.roles,
+      subjectScopes: params.subjectScopes,
+      organizationId: params.organizationId,
+      organizationName: params.organizationName,
+      permissions: params.permissions,
     };
   }
 
